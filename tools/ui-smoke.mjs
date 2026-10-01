@@ -62,7 +62,6 @@ function mkEl(tag, id, cls) {
   const el = {
     tagName: (tag || 'div').toUpperCase(),
     id: id || '',
-    className: cls || '',
     value: '',
     disabled: false,
     href: '',
@@ -77,7 +76,17 @@ function mkEl(tag, id, cls) {
     _handlers: {},
     _html: ''
   };
+  // className 与 classList 必须双向同步：ui.js 里大量用 el.className = '...' 直接赋值
+  let clsStr = cls || '';
   const set = new Set(String(cls || '').split(/\s+/).filter(Boolean));
+  Object.defineProperty(el, 'className', {
+    get: () => clsStr,
+    set: v => {
+      clsStr = String(v == null ? '' : v);
+      set.clear();
+      clsStr.split(/\s+/).filter(Boolean).forEach(x => set.add(x));
+    }
+  });
   Object.defineProperty(el, 'classList', {
     value: {
       add: (...c) => { c.forEach(x => set.add(x)); el.className = [...set].join(' '); },
@@ -177,6 +186,7 @@ assert(app.active().id === 'screen-roll', '取名后应进入抽灵根页，实�
 assert($('roll-root').textContent.length > 0, '灵根未渲染');
 assert($('roll-origin').textContent.length > 0, '出身未渲染');
 assert($('btn-reroll').style.display !== 'none', '首局应显示重开一世按钮');
+assert($('chosen-tip').style.display === 'none', '彩蛋：普通名字不应出现「天命所归」提示');
 $('btn-reroll').click();
 flush();
 assert($('btn-reroll').style.display === 'none', '重抽后应隐藏重开一世按钮');
@@ -285,6 +295,46 @@ const r2 = (() => {
 })();
 assert(r2 === 'ending', '继续的存档未能走完，停在 ' + r2);
 
+/* ------------------------------------------- 彩蛋：名字叫「养的」的人 --- */
+
+const app3 = makeApp();
+app3.$('name-input').value = '养的';
+app3.$('btn-start').click(); flush();
+assert(app3.active().id === 'screen-roll', '彩蛋：取名后应进入抽灵根页，实际：' + app3.active().id);
+assert(app3.$('chosen-tip').style.display === 'block', '彩蛋：未显示「天命所归」提示');
+app3.$('btn-enter').click(); flush();
+assert(app3.active().id === 'screen-game', '彩蛋：落定后应进入游戏页，实际：' + app3.active().id);
+assert(app3.$('hud').innerHTML.indexOf('天命') >= 0, '彩蛋：属性面板缺少「天命」标识');
+
+let eggSteps = 0, eggTurns = 0, eggMulti = 0;
+while (eggSteps++ < 200) {
+  const scr = app3.active();
+  if (!scr || scr.id === 'screen-ending') break;
+  if (scr.id !== 'screen-game') break;
+  const box = app3.$('result-box');
+  if (box.style.display === 'block' && box.buttons().length) {
+    box.buttons()[box.buttons().length - 1].click(); flush(); continue;
+  }
+  const picks = app3.$('choices').buttons().filter(b => !b.classList.contains('ghost'));
+  if (!picks.length) { flush(); continue; }
+  eggTurns++;
+  if (picks.length !== 1) eggMulti++;
+  if (app3.$('btn-breakthrough').style.display !== 'none') eggMulti++;
+  picks[0].click(); flush();
+}
+assert(app3.active().id === 'screen-ending', '彩蛋：未走到结算，停在 ' + app3.active().id);
+assert(eggMulti === 0, '彩蛋：有 ' + eggMulti + ' 处出现了多余选项或突破按钮');
+assert(eggTurns >= 7, '彩蛋：只走了 ' + eggTurns + ' 个回合，不足以飞升');
+assert(eggTurns <= 12, '彩蛋：走了 ' + eggTurns + ' 个回合才飞升，太慢');
+assert(app3.$('ending-name').textContent === '爽文人生',
+  '彩蛋：结局应为爽文人生，实际 ' + app3.$('ending-name').textContent);
+assert(app3.$('ending-title').textContent === '天命所归',
+  '彩蛋：称号应为天命所归，实际 ' + app3.$('ending-title').textContent);
+assert(/飞升/.test(app3.$('ending-stats').innerHTML), '彩蛋：终局境界不是飞升');
+assert(/天门自开/.test(app3.$('ending-verdict').textContent), '彩蛋：结算评语未走专属文案');
+console.log('  彩蛋验证：「养的」' + eggTurns + ' 个回合一路飞升，称号「' +
+  app3.$('ending-title').textContent + '」');
+
 /* ------------------------------------------------------------------ 报告 --- */
 
 const prof = JSON.parse(storage.getItem('xiuxian.v1') || '{}').profile || {};
@@ -292,7 +342,7 @@ console.log('界面冒烟测试');
 console.log('  完整周目：' + N_RUNS + '　突破操作：' + breaks + ' 次');
 console.log('  结局分布：' + Object.entries(endings).map(([k, v]) => k + ' ×' + v).join('　'));
 console.log('  存档图鉴：结局 ' + Object.keys(prof.endings || {}).length + '/6　成就 ' +
-  Object.keys(prof.achs || {}).length + '/24　共修行 ' + (prof.runs || 0) + ' 世　待过宗门：' + ((prof.sects || []).join('、') || '无'));
+  Object.keys(prof.achs || {}).length + ' 个　共修行 ' + (prof.runs || 0) + ' 世　待过宗门：' + ((prof.sects || []).join('、') || '无'));
 if (errors.length) {
   console.error('\ní 界面问题 ' + errors.length + ' 处：');
   errors.slice(0, 30).forEach(e => console.error('  · ' + e));

@@ -246,6 +246,23 @@ input[type="text"]:focus { border-bottom-color: var(--cinnabar); }
 .chip.warn { color: var(--cinnabar); border-color: rgba(156, 43, 35, 0.35); }
 .chip.up { color: var(--jade); }
 .chip.down { color: var(--cinnabar); }
+.chip.gold { color: #7d5a10; border-color: rgba(166, 124, 34, 0.55); background: rgba(166, 124, 34, 0.1); }
+
+/* --- 彩蛋：天命所归 --- */
+.chosen-tip {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 15px;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  color: #7d5a10;
+  animation: blink 2.6s ease-in-out infinite;
+}
+.btn.chosen {
+  border-left-color: var(--gold);
+  background: rgba(166, 124, 34, 0.09);
+  box-shadow: 0 0 0 1px rgba(166, 124, 34, 0.28) inset;
+}
 
 .toggle-hud {
   font-size: 12px;

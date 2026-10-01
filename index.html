@@ -260,6 +260,23 @@ input[type="text"]:focus { border-bottom-color: var(--cinnabar); }
 .chip.warn { color: var(--cinnabar); border-color: rgba(156, 43, 35, 0.35); }
 .chip.up { color: var(--jade); }
 .chip.down { color: var(--cinnabar); }
+.chip.gold { color: #7d5a10; border-color: rgba(166, 124, 34, 0.55); background: rgba(166, 124, 34, 0.1); }
+
+/* --- 彩蛋：天命所归 --- */
+.chosen-tip {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 15px;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  color: #7d5a10;
+  animation: blink 2.6s ease-in-out infinite;
+}
+.btn.chosen {
+  border-left-color: var(--gold);
+  background: rgba(166, 124, 34, 0.09);
+  box-shadow: 0 0 0 1px rgba(166, 124, 34, 0.28) inset;
+}
 
 .toggle-hud {
   font-size: 12px;
@@ -481,6 +498,7 @@ input[type="text"]:focus { border-bottom-color: var(--cinnabar); }
         <div class="roll-desc" id="roll-age"></div>
       </div>
     </div>
+    <div class="chosen-tip" id="chosen-tip" style="display:none">天 命 所 归</div>
     <div style="text-align:center;font-size:12.5px;color:#6d6255;letter-spacing:.14em" id="reroll-note"></div>
     <div style="margin-top:16px">
       <button class="btn gold" id="btn-reroll">重 开 一 世</button>
@@ -619,6 +637,45 @@ const TUNING = {
 
 const BREAKTHROUGH_COST = TUNING.costs;
 
+/* ---------------------------------------------------------------- 彩蛋 --- */
+/* 输入这个名字的人，天地会替他做决定。不要写进任何教程里。 */
+
+const EASTER_NAME = '养的';
+
+function isChosenName(name) {
+  return String(name == null ? '' : name).trim() === EASTER_NAME;
+}
+
+/** 给一个选项打分，分最高的就是「最优选项」 */
+function choiceScore(s, ch) {
+  const e = (ch && ch.effect) || {};
+  if (e.death) return -1e9;                       // 死路永远不是最优
+  let v = 0;
+  if (e.realm != null) v += (e.realm - s.realm) * 1e6;
+  if (e.cult) v += e.cult * 12;
+  if (e.lifespan) v += e.lifespan * 200;
+  if (e.mind) v += e.mind * 40;
+  if (e.luck) v += e.luck * 40;
+  if (e.fame) v += e.fame * 10;
+  if (e.wealth) v += e.wealth * 0.5;
+  if (e.mo) v -= e.mo * 60;
+  if (e.sectJoin) v += 300;
+  if (e.partner) v += 500;
+  if (e.contribution) v += e.contribution * 2;
+  if (e.rel) for (const k in e.rel) v += e.rel[k] * 4;
+  return v;
+}
+
+function bestChoiceIndex(s, ev) {
+  const list = (ev && ev.choices) || [];
+  let best = 0, bestV = -Infinity;
+  for (let i = 0; i < list.length; i++) {
+    const v = choiceScore(s, list[i]);
+    if (v > bestV) { bestV = v; best = i; }
+  }
+  return best;
+}
+
 const ROOTS = [
   { name: '天灵根', mult: 1.75, weight: 2, desc: '万中无一的道种，天地灵气自来投怀' },
   { name: '变异雷灵根', mult: 1.55, weight: 4, desc: '掌雷，性烈如火，进境极快' },
@@ -701,6 +758,7 @@ function judge(s, opts) {
   } else {
     title = honorTitle(s);
   }
+  if (s.chosen && !s.deathCause) title = '天命所归';   // 彩蛋专属称号
   const e = ENDINGS[id];
   return { endingId: id, title, verdict: e.judge };
 }
@@ -731,7 +789,8 @@ const ACHIEVEMENTS = [
   { id: 'a_demon_end', name: '魔道至尊', desc: '得到「天魔人生」结局' },
   { id: 'a_long_end', name: '人瑞', desc: '得到「凡人长寿」结局' },
   { id: 'a_kind', name: '道心澄明', desc: '结局时道心不低于 80' },
-  { id: 'a_iron', name: '杀伐果断', desc: '结局时魔念不低于 60 且未堕魔' }
+  { id: 'a_iron', name: '杀伐果断', desc: '结局时魔念不低于 60 且未堕魔' },
+  { id: 'a_chosen', name: '天命所归', desc: '有一个名字，天地格外偏爱' }
 ];
 
 /* -------------------------------------------------------------- 工具 --- */
@@ -883,6 +942,7 @@ class Game {
       rels: {},
       partner: null,
       deathCause: null,
+      chosen: false,
       rootName: root.name,
       originName: origin.name
     };
@@ -947,8 +1007,11 @@ class Game {
   choose(index) {
     const ev = this.current;
     const s = this.s;
+    const chosen = this.chosen;
+    if (chosen) index = bestChoiceIndex(s, ev);          // 彩蛋：你只会看到最优的那条路
     const ch = ev.choices[index] || ev.choices[0];
     let eff = ch.effect || {};
+    if (chosen && eff.death) eff = Object.assign({}, eff, { death: null });
     const notes = [];
 
     // 岁月本身的积累
@@ -973,6 +1036,24 @@ class Game {
     this.turn++;
 
     this.lastResult = { result: ch.result, notes };
+
+    // 彩蛋：修为永远够用，境界自己往上走
+    if (chosen) {
+      if (s.realm <= 6 && s.cult < BREAKTHROUGH_COST[s.realm]) s.cult = BREAKTHROUGH_COST[s.realm];
+      let up = 0;
+      while (s.realm <= 6 && s.cult >= BREAKTHROUGH_COST[s.realm]) {
+        s.cult -= BREAKTHROUGH_COST[s.realm];
+        s.realm += 1; up += 1;
+        s.fame += 8 * s.realm;
+        s.lifespan = Math.max(s.lifespan, REALM_LIFESPAN[s.realm]);
+        notes.push({ label: '境界', text: REALM_NAMES[s.realm] });
+        this.chronicle.push({ age: s.age, event: '天授', choice: '破入' + REALM_NAMES[s.realm], log: '破入' + REALM_NAMES[s.realm] });
+      }
+      if (up) {
+        this.lastResult.result = ch.result + '\n\n【天命】你只是顺着心意走了一步，天地却替你推开了一扇门——' +
+          REALM_NAMES[s.realm] + '。';
+      }
+    }
 
     // 寿元耗尽既可以按境界评结局，也可以直接算「陨落」（由 TUNING.agingIsDeath 决定）
     if (!s.deathCause && TUNING.agingIsDeath && s.age >= s.lifespan) s.deathCause = '寿元耗尽';
@@ -1009,7 +1090,7 @@ class Game {
     const s = this.s;
     const cost = BREAKTHROUGH_COST[s.realm];
     const p = this.breakthroughChance();
-    const ok = this.rng() < p;
+    const ok = this.chosen ? true : this.rng() < p;
     const notes = [];
     let text;
     if (ok) {
@@ -1058,6 +1139,9 @@ class Game {
     return { result: this.lastResult, ended: this.over };
   }
 
+  /** 彩蛋模式：开局名字命中 EASTER_NAME 时由界面层打开 */
+  get chosen() { return !!(this.s && this.s.chosen); }
+
   finished() { return this.over; }
 
   finish(ascended, reason) {
@@ -1095,6 +1179,7 @@ class Game {
     }
     if (s.mind >= 80) has('a_kind');
     if (s.mo >= 60 && s.mo < 70) has('a_iron');
+    if (s.chosen) has('a_chosen');
     return out;
   }
 }
@@ -1256,6 +1341,7 @@ function mulberry32(seed) {
     var cost = BREAKTHROUGH_COST[s.realm] || 1;
     var pct = s.realm >= 7 ? 100 : Math.min(100, Math.round(s.cult / cost * 100));
     var chips = [];
+    if (s.chosen) chips.push('<span class="chip gold"><b>天命</b>所归</span>');
     chips.push('<span class="chip"><b>灵根</b>' + esc(s.root) + '</span>');
     chips.push('<span class="chip"><b>出身</b>' + esc(s.origin) + '</span>');
     chips.push('<span class="chip"><b>气运</b>' + s.luck + '</span>');
@@ -1316,8 +1402,10 @@ function mulberry32(seed) {
       GAME = new Game(EVENTS, RNG);
       GAME.roll(gender);
       GAME.s.name = nm;
+      GAME.s.chosen = isChosenName(nm);
       show('screen-roll');
       renderRoll();
+      if (GAME.s.chosen) toast('天 命 所 归');
     };
     $('btn-continue').onclick = function () {
       var raw = readRaw();
@@ -1328,6 +1416,7 @@ function mulberry32(seed) {
       GAME.s = r.s; GAME.seen = r.seen || {}; GAME.turn = r.turn || 0;
       GAME.chronicle = r.chronicle || []; GAME.over = !!r.over;
       GAME.ending = r.ending || null; GAME.ascended = !!r.ascended;
+      GAME.s.chosen = !!GAME.s.chosen || isChosenName(GAME.s.name);
       GAME.rerolled = true; GAME.lastEventId = r.lastEventId || null;
       if (GAME.over) { renderEnding(); show('screen-ending'); return; }
       if (r.currentId) {
@@ -1354,7 +1443,11 @@ function mulberry32(seed) {
     $('roll-origin-desc').textContent = s.originDesc;
     $('roll-age').textContent = s.age + ' 岁 · 气运 ' + s.luck + ' · 道心 ' + s.mind;
     $('btn-reroll').style.display = GAME.rerolled ? 'none' : 'block';
-    $('reroll-note').textContent = GAME.rerolled ? '命数已定，重来不得。' : '一生只有一次改命的机会。';
+    var chosen = !!s.chosen;
+    $('chosen-tip').style.display = chosen ? 'block' : 'none';
+    $('reroll-note').textContent = chosen
+      ? '天地认得这个名字——每道门都只会为你留一条路。'
+      : (GAME.rerolled ? '命数已定，重来不得。' : '一生只有一次改命的机会。');
   }
 
   function bindRoll() {
@@ -1363,6 +1456,7 @@ function mulberry32(seed) {
       var nm = GAME.s.name, g = GAME.s.gender;
       GAME.roll(g);
       GAME.s.name = nm;
+      GAME.s.chosen = isChosenName(nm);
       renderRoll();
       toast('重开一世');
     };
@@ -1390,7 +1484,9 @@ function mulberry32(seed) {
     typewriter($('event-text'), ev.text, function () { buildChoices(ev); });
 
     var bt = $('btn-breakthrough');
-    if (GAME.canBreakthrough()) {
+    if (GAME.s.chosen) {
+      bt.style.display = 'none';   // 彩蛋：境界不需要自己破
+    } else if (GAME.canBreakthrough()) {
       bt.style.display = 'block';
       bt.textContent = '闭关突破 · 破入' + REALM_NAMES[s.realm + 1] + '（成功率约 ' + Math.round(GAME.breakthroughChance() * 100) + '%）';
       bt.disabled = false;
@@ -1404,13 +1500,16 @@ function mulberry32(seed) {
 
   function buildChoices(ev) {
     var box = $('choices');
+    var chosen = !!(GAME.s && GAME.s.chosen);
+    var only = chosen ? bestChoiceIndex(GAME.s, ev) : -1;
     var hint = document.createElement('div');
     hint.className = 'hint';
-    hint.textContent = '— 你要怎么做 —';
+    hint.textContent = chosen ? '— 天意只留下这一条路 —' : '— 你要怎么做 —';
     box.appendChild(hint);
     ev.choices.forEach(function (c, i) {
+      if (chosen && i !== only) return;
       var b = document.createElement('button');
-      b.className = 'btn';
+      b.className = 'btn' + (chosen ? ' chosen' : '');
       b.textContent = c.text;
       b.onclick = function () { doChoose(i); };
       box.appendChild(b);
@@ -1550,7 +1649,7 @@ function mulberry32(seed) {
     $('ending-seal').style.borderColor = E ? E.color : '';
     $('ending-title').textContent = e.title || '';
     var why = GAME.s.deathCause ? ('死于' + GAME.s.deathCause)
-      : GAME.ascended ? '天门已开，你走了进去'
+      : GAME.ascended ? (GAME.s.chosen ? '天门自开，你只是走了进去' : '天门已开，你走了进去')
         : (e.reason ? e.reason : '寿元耗尽');
     $('ending-verdict').textContent = (E ? E.judge : '') + '　——　' + why;
     $('ending-stats').innerHTML = hudHTML(s);
@@ -1566,6 +1665,7 @@ function mulberry32(seed) {
       GAME = new Game(EVENTS, RNG);
       GAME.roll(gender);
       GAME.s.name = nm;
+      GAME.s.chosen = isChosenName(nm);
       show('screen-roll');
       renderRoll();
     };

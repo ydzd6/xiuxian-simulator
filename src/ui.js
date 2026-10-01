@@ -139,6 +139,7 @@
     var cost = BREAKTHROUGH_COST[s.realm] || 1;
     var pct = s.realm >= 7 ? 100 : Math.min(100, Math.round(s.cult / cost * 100));
     var chips = [];
+    if (s.chosen) chips.push('<span class="chip gold"><b>天命</b>所归</span>');
     chips.push('<span class="chip"><b>灵根</b>' + esc(s.root) + '</span>');
     chips.push('<span class="chip"><b>出身</b>' + esc(s.origin) + '</span>');
     chips.push('<span class="chip"><b>气运</b>' + s.luck + '</span>');
@@ -199,8 +200,10 @@
       GAME = new Game(EVENTS, RNG);
       GAME.roll(gender);
       GAME.s.name = nm;
+      GAME.s.chosen = isChosenName(nm);
       show('screen-roll');
       renderRoll();
+      if (GAME.s.chosen) toast('天 命 所 归');
     };
     $('btn-continue').onclick = function () {
       var raw = readRaw();
@@ -211,6 +214,7 @@
       GAME.s = r.s; GAME.seen = r.seen || {}; GAME.turn = r.turn || 0;
       GAME.chronicle = r.chronicle || []; GAME.over = !!r.over;
       GAME.ending = r.ending || null; GAME.ascended = !!r.ascended;
+      GAME.s.chosen = !!GAME.s.chosen || isChosenName(GAME.s.name);
       GAME.rerolled = true; GAME.lastEventId = r.lastEventId || null;
       if (GAME.over) { renderEnding(); show('screen-ending'); return; }
       if (r.currentId) {
@@ -237,7 +241,11 @@
     $('roll-origin-desc').textContent = s.originDesc;
     $('roll-age').textContent = s.age + ' 岁 · 气运 ' + s.luck + ' · 道心 ' + s.mind;
     $('btn-reroll').style.display = GAME.rerolled ? 'none' : 'block';
-    $('reroll-note').textContent = GAME.rerolled ? '命数已定，重来不得。' : '一生只有一次改命的机会。';
+    var chosen = !!s.chosen;
+    $('chosen-tip').style.display = chosen ? 'block' : 'none';
+    $('reroll-note').textContent = chosen
+      ? '天地认得这个名字——每道门都只会为你留一条路。'
+      : (GAME.rerolled ? '命数已定，重来不得。' : '一生只有一次改命的机会。');
   }
 
   function bindRoll() {
@@ -246,6 +254,7 @@
       var nm = GAME.s.name, g = GAME.s.gender;
       GAME.roll(g);
       GAME.s.name = nm;
+      GAME.s.chosen = isChosenName(nm);
       renderRoll();
       toast('重开一世');
     };
@@ -273,7 +282,9 @@
     typewriter($('event-text'), ev.text, function () { buildChoices(ev); });
 
     var bt = $('btn-breakthrough');
-    if (GAME.canBreakthrough()) {
+    if (GAME.s.chosen) {
+      bt.style.display = 'none';   // 彩蛋：境界不需要自己破
+    } else if (GAME.canBreakthrough()) {
       bt.style.display = 'block';
       bt.textContent = '闭关突破 · 破入' + REALM_NAMES[s.realm + 1] + '（成功率约 ' + Math.round(GAME.breakthroughChance() * 100) + '%）';
       bt.disabled = false;
@@ -287,13 +298,16 @@
 
   function buildChoices(ev) {
     var box = $('choices');
+    var chosen = !!(GAME.s && GAME.s.chosen);
+    var only = chosen ? bestChoiceIndex(GAME.s, ev) : -1;
     var hint = document.createElement('div');
     hint.className = 'hint';
-    hint.textContent = '— 你要怎么做 —';
+    hint.textContent = chosen ? '— 天意只留下这一条路 —' : '— 你要怎么做 —';
     box.appendChild(hint);
     ev.choices.forEach(function (c, i) {
+      if (chosen && i !== only) return;
       var b = document.createElement('button');
-      b.className = 'btn';
+      b.className = 'btn' + (chosen ? ' chosen' : '');
       b.textContent = c.text;
       b.onclick = function () { doChoose(i); };
       box.appendChild(b);
@@ -433,7 +447,7 @@
     $('ending-seal').style.borderColor = E ? E.color : '';
     $('ending-title').textContent = e.title || '';
     var why = GAME.s.deathCause ? ('死于' + GAME.s.deathCause)
-      : GAME.ascended ? '天门已开，你走了进去'
+      : GAME.ascended ? (GAME.s.chosen ? '天门自开，你只是走了进去' : '天门已开，你走了进去')
         : (e.reason ? e.reason : '寿元耗尽');
     $('ending-verdict').textContent = (E ? E.judge : '') + '　——　' + why;
     $('ending-stats').innerHTML = hudHTML(s);
@@ -449,6 +463,7 @@
       GAME = new Game(EVENTS, RNG);
       GAME.roll(gender);
       GAME.s.name = nm;
+      GAME.s.chosen = isChosenName(nm);
       show('screen-roll');
       renderRoll();
     };

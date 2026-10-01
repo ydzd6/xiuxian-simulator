@@ -49,6 +49,45 @@ export const TUNING = {
 
 export const BREAKTHROUGH_COST = TUNING.costs;
 
+/* ---------------------------------------------------------------- 彩蛋 --- */
+/* 输入这个名字的人，天地会替他做决定。不要写进任何教程里。 */
+
+export const EASTER_NAME = '养的';
+
+export function isChosenName(name) {
+  return String(name == null ? '' : name).trim() === EASTER_NAME;
+}
+
+/** 给一个选项打分，分最高的就是「最优选项」 */
+export function choiceScore(s, ch) {
+  const e = (ch && ch.effect) || {};
+  if (e.death) return -1e9;                       // 死路永远不是最优
+  let v = 0;
+  if (e.realm != null) v += (e.realm - s.realm) * 1e6;
+  if (e.cult) v += e.cult * 12;
+  if (e.lifespan) v += e.lifespan * 200;
+  if (e.mind) v += e.mind * 40;
+  if (e.luck) v += e.luck * 40;
+  if (e.fame) v += e.fame * 10;
+  if (e.wealth) v += e.wealth * 0.5;
+  if (e.mo) v -= e.mo * 60;
+  if (e.sectJoin) v += 300;
+  if (e.partner) v += 500;
+  if (e.contribution) v += e.contribution * 2;
+  if (e.rel) for (const k in e.rel) v += e.rel[k] * 4;
+  return v;
+}
+
+export function bestChoiceIndex(s, ev) {
+  const list = (ev && ev.choices) || [];
+  let best = 0, bestV = -Infinity;
+  for (let i = 0; i < list.length; i++) {
+    const v = choiceScore(s, list[i]);
+    if (v > bestV) { bestV = v; best = i; }
+  }
+  return best;
+}
+
 export const ROOTS = [
   { name: '天灵根', mult: 1.75, weight: 2, desc: '万中无一的道种，天地灵气自来投怀' },
   { name: '变异雷灵根', mult: 1.55, weight: 4, desc: '掌雷，性烈如火，进境极快' },
@@ -131,6 +170,7 @@ export function judge(s, opts) {
   } else {
     title = honorTitle(s);
   }
+  if (s.chosen && !s.deathCause) title = '天命所归';   // 彩蛋专属称号
   const e = ENDINGS[id];
   return { endingId: id, title, verdict: e.judge };
 }
@@ -161,7 +201,8 @@ export const ACHIEVEMENTS = [
   { id: 'a_demon_end', name: '魔道至尊', desc: '得到「天魔人生」结局' },
   { id: 'a_long_end', name: '人瑞', desc: '得到「凡人长寿」结局' },
   { id: 'a_kind', name: '道心澄明', desc: '结局时道心不低于 80' },
-  { id: 'a_iron', name: '杀伐果断', desc: '结局时魔念不低于 60 且未堕魔' }
+  { id: 'a_iron', name: '杀伐果断', desc: '结局时魔念不低于 60 且未堕魔' },
+  { id: 'a_chosen', name: '天命所归', desc: '有一个名字，天地格外偏爱' }
 ];
 
 /* -------------------------------------------------------------- 工具 --- */
@@ -313,6 +354,7 @@ export class Game {
       rels: {},
       partner: null,
       deathCause: null,
+      chosen: false,
       rootName: root.name,
       originName: origin.name
     };
@@ -377,8 +419,11 @@ export class Game {
   choose(index) {
     const ev = this.current;
     const s = this.s;
+    const chosen = this.chosen;
+    if (chosen) index = bestChoiceIndex(s, ev);          // 彩蛋：你只会看到最优的那条路
     const ch = ev.choices[index] || ev.choices[0];
     let eff = ch.effect || {};
+    if (chosen && eff.death) eff = Object.assign({}, eff, { death: null });
     const notes = [];
 
     // 岁月本身的积累
@@ -403,6 +448,24 @@ export class Game {
     this.turn++;
 
     this.lastResult = { result: ch.result, notes };
+
+    // 彩蛋：修为永远够用，境界自己往上走
+    if (chosen) {
+      if (s.realm <= 6 && s.cult < BREAKTHROUGH_COST[s.realm]) s.cult = BREAKTHROUGH_COST[s.realm];
+      let up = 0;
+      while (s.realm <= 6 && s.cult >= BREAKTHROUGH_COST[s.realm]) {
+        s.cult -= BREAKTHROUGH_COST[s.realm];
+        s.realm += 1; up += 1;
+        s.fame += 8 * s.realm;
+        s.lifespan = Math.max(s.lifespan, REALM_LIFESPAN[s.realm]);
+        notes.push({ label: '境界', text: REALM_NAMES[s.realm] });
+        this.chronicle.push({ age: s.age, event: '天授', choice: '破入' + REALM_NAMES[s.realm], log: '破入' + REALM_NAMES[s.realm] });
+      }
+      if (up) {
+        this.lastResult.result = ch.result + '\n\n【天命】你只是顺着心意走了一步，天地却替你推开了一扇门——' +
+          REALM_NAMES[s.realm] + '。';
+      }
+    }
 
     // 寿元耗尽既可以按境界评结局，也可以直接算「陨落」（由 TUNING.agingIsDeath 决定）
     if (!s.deathCause && TUNING.agingIsDeath && s.age >= s.lifespan) s.deathCause = '寿元耗尽';
@@ -439,7 +502,7 @@ export class Game {
     const s = this.s;
     const cost = BREAKTHROUGH_COST[s.realm];
     const p = this.breakthroughChance();
-    const ok = this.rng() < p;
+    const ok = this.chosen ? true : this.rng() < p;
     const notes = [];
     let text;
     if (ok) {
@@ -488,6 +551,9 @@ export class Game {
     return { result: this.lastResult, ended: this.over };
   }
 
+  /** 彩蛋模式：开局名字命中 EASTER_NAME 时由界面层打开 */
+  get chosen() { return !!(this.s && this.s.chosen); }
+
   finished() { return this.over; }
 
   finish(ascended, reason) {
@@ -525,6 +591,7 @@ export class Game {
     }
     if (s.mind >= 80) has('a_kind');
     if (s.mo >= 60 && s.mo < 70) has('a_iron');
+    if (s.chosen) has('a_chosen');
     return out;
   }
 }
