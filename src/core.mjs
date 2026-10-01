@@ -58,6 +58,15 @@ export function isChosenName(name) {
   return String(name == null ? '' : name).trim() === EASTER_NAME;
 }
 
+/** 出身综合评分：气运与道心最要紧，声望、灵石次之 */
+export function originScore(o) {
+  return (o.luck || 0) * 2 + (o.mind || 0) * 2 + (o.fame || 0) * 0.2 + (o.wealth || 0) * 0.02;
+}
+
+/** 最强的灵根 / 最优的出身 */
+export function bestRoot() { return ROOTS.reduce((a, b) => (b.mult > a.mult ? b : a)); }
+export function bestOrigin() { return ORIGINS.reduce((a, b) => (originScore(b) > originScore(a) ? b : a)); }
+
 /** 给一个选项打分，分最高的就是「最优选项」 */
 export function choiceScore(s, ch) {
   const e = (ch && ch.effect) || {};
@@ -325,12 +334,14 @@ export class Game {
     this.log = [];
   }
 
-  /* --- 开局随机 --- */
-  roll(gender) {
+  /* --- 开局随机（彩蛋传入 chosen 时直接给最强配置） --- */
+  roll(gender, chosen) {
     const rng = this.rng;
-    const root = weightedPick(ROOTS, rng);
-    const origin = weightedPick(ORIGINS, rng);
-    const age = ri(rng, 12, 16);
+    const root = chosen ? bestRoot() : weightedPick(ROOTS, rng);
+    const origin = chosen ? bestOrigin() : weightedPick(ORIGINS, rng);
+    const age = chosen ? 12 : ri(rng, 12, 16);
+    const jLuck = chosen ? 8 : ri(rng, -8, 8);
+    const jMind = chosen ? 8 : ri(rng, -8, 8);
     this.s = {
       name: '无名',
       gender: gender || (rng() < 0.5 ? '男' : '女'),
@@ -343,8 +354,8 @@ export class Game {
       cult: 0,
       age,
       lifespan: REALM_LIFESPAN[0],
-      luck: clamp(50 + (origin.luck || 0) + ri(rng, -8, 8), 5, 95),
-      mind: clamp(50 + (origin.mind || 0) + ri(rng, -8, 8), 5, 95),
+      luck: clamp(50 + (origin.luck || 0) + jLuck, 5, 95),
+      mind: clamp(50 + (origin.mind || 0) + jMind, 5, 95),
       mo: 0,
       fame: Math.max(0, origin.fame || 0),
       wealth: origin.wealth || 0,
@@ -354,7 +365,7 @@ export class Game {
       rels: {},
       partner: null,
       deathCause: null,
-      chosen: false,
+      chosen: !!chosen,
       rootName: root.name,
       originName: origin.name
     };

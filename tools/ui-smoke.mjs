@@ -302,6 +302,15 @@ app3.$('name-input').value = '养的';
 app3.$('btn-start').click(); flush();
 assert(app3.active().id === 'screen-roll', '彩蛋：取名后应进入抽灵根页，实际：' + app3.active().id);
 assert(app3.$('chosen-tip').style.display === 'block', '彩蛋：未显示「天命所归」提示');
+assert(app3.$('roll-root').textContent === '天灵根',
+  '彩蛋：灵根应为天灵根，实际 ' + app3.$('roll-root').textContent);
+assert(/×1\.75/.test(app3.$('roll-root-desc').textContent),
+  '彩蛋：灵根倍率不是最高，实际 ' + app3.$('roll-root-desc').textContent);
+assert(app3.$('roll-origin').textContent === '弃婴，被老道收养',
+  '彩蛋：出身应为最优，实际 ' + app3.$('roll-origin').textContent);
+app3.$('btn-reroll').click(); flush();
+assert(app3.$('roll-root').textContent === '天灵根', '彩蛋：重开一世后仍应是最强灵根');
+assert(app3.$('roll-origin').textContent === '弃婴，被老道收养', '彩蛋：重开一世后仍应是最优出身');
 app3.$('btn-enter').click(); flush();
 assert(app3.active().id === 'screen-game', '彩蛋：落定后应进入游戏页，实际：' + app3.active().id);
 assert(app3.$('hud').innerHTML.indexOf('天命') >= 0, '彩蛋：属性面板缺少「天命」标识');

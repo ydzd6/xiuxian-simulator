@@ -197,13 +197,14 @@
       if (!nm) { toast('请先取一个名字'); return; }
       if (nm.length > 8) { toast('名字太长，取个短些的'); return; }
       runAch = {}; endingCounted = false;
+      var chosen = isChosenName(nm);
       GAME = new Game(EVENTS, RNG);
-      GAME.roll(gender);
+      GAME.roll(gender, chosen);
       GAME.s.name = nm;
-      GAME.s.chosen = isChosenName(nm);
+      GAME.s.chosen = chosen;
       show('screen-roll');
       renderRoll();
-      if (GAME.s.chosen) toast('天 命 所 归');
+      if (chosen) toast('天 命 所 归');
     };
     $('btn-continue').onclick = function () {
       var raw = readRaw();
@@ -252,9 +253,10 @@
     $('btn-reroll').onclick = function () {
       if (!GAME.reroll()) return;
       var nm = GAME.s.name, g = GAME.s.gender;
-      GAME.roll(g);
+      var chosen = isChosenName(nm);
+      GAME.roll(g, chosen);
       GAME.s.name = nm;
-      GAME.s.chosen = isChosenName(nm);
+      GAME.s.chosen = chosen;
       renderRoll();
       toast('重开一世');
     };
@@ -460,10 +462,11 @@
       runAch = {};
       endingCounted = false;
       var nm = GAME.s.name;
+      var chosen = isChosenName(nm);
       GAME = new Game(EVENTS, RNG);
-      GAME.roll(gender);
+      GAME.roll(gender, chosen);
       GAME.s.name = nm;
-      GAME.s.chosen = isChosenName(nm);
+      GAME.s.chosen = chosen;
       show('screen-roll');
       renderRoll();
     };
