@@ -138,6 +138,7 @@
 .
 ├── index.html              # 构建产物：单文件游戏，双击即玩（勿手改）
 ├── build.mjs               # 构建脚本：校验数据 + 内联 css/json/core/ui
+├── .nojekyll               # 让 GitHub Pages 跳过 Jekyll
 ├── src/
 │   ├── core.mjs            # 纯逻辑：境界/灵根/出身/结局/成就/Game 类，不碰 DOM
 │   ├── ui.js               # 界面与存档层（IIFE，操作 DOM）
@@ -228,23 +229,40 @@ export const EVENTS_D03 = [
 
 ## 部署与分享
 
-游戏是单个 HTML 文件，扔到任何静态托管上就能用。
+游戏是单个 HTML 文件，扔到任何静态托管上就能用。仓库里已放好 `.nojekyll`，GitHub Pages 不会去跑 Jekyll。
 
-**GitHub Pages**（仓库已推送到 GitHub 时最省事）：
+### GitHub Pages
+
+**方式一：仓库设置里点三下（推荐，最省事）**
+
+1. 打开 `https://github.com/<用户名>/<仓库名>/settings/pages`
+2. **Source** 选 `Deploy from a branch`
+3. **Branch** 选 `main`，目录选 `/ (root)`，点 **Save**
+
+等一分钟左右，访问 **`https://<用户名>.github.io/<仓库名>/`** 就是在线版。
+
+**方式二：命令行（需要 `gh` 能正常联网）**
 
 ```bash
 gh api -X POST repos/<用户名>/<仓库名>/pages \
   -f 'source[branch]=main' -f 'source[path]=/'
 ```
 
-之后访问 `https://<用户名>.github.io/<仓库名>/`。
+> 注意：本项目的开发环境里沙箱会让 `schannel` 拿不到凭据（`SEC_E_NO_CREDENTIALS`），**所有 HTTPS 请求都会失败**，所以 `gh` / `curl https://...` 在这里用不了；`git push` 走的是 SSH，不受影响。如果你的机器没有这个限制，两种方式都能用。
 
-**其他备选**：Cloudflare Pages（连接仓库、构建命令留空、输出目录填 `/`）、Gitee Pages、任意对象存储的静态网站功能。
+### 其他备选
 
-**微信里分享**：把 https 链接直接发给好友或发朋友圈即可，微信内置浏览器能打开。注意两点——
+- **Cloudflare Pages**：连接仓库，构建命令留空，输出目录填 `/`。
+- **Netlify / Surge / 对象存储静态网站**：把 `index.html` 传上去即可，不需要任何构建。
+- 最原始的办法：把 `index.html` 直接发给朋友，用浏览器打开也能玩（`localStorage` 有 try/catch 兜底，`file://` 下不会白屏）。
 
-1. 用 GitHub Pages 的话部分网络环境下加载会慢，国内访问更稳的是 Cloudflare Pages / 国内静态托管；
-2. 战绩图是 canvas 生成的，微信里**长按图片**保存，不要指望「下载」按钮（微信内置浏览器会限制下载）。
+### 微信里分享
+
+拿到 `https://` 链接后直接发给好友或发朋友圈，微信内置浏览器能打开。页面已经写好 `og:title` / `og:description` / `theme-color`，转发时会带标题和简介。几点注意——
+
+1. GitHub Pages 在国内部分网络下加载偏慢。如果朋友打不开或很卡，换 Cloudflare Pages 或国内静态托管会明显更快。
+2. 战绩图是 canvas 生成的 dataURL，微信里请**长按图片**保存，别指望「下载」按钮（微信内置浏览器会限制下载）。
+3. 游戏进度存在浏览器本地（`localStorage`），换手机或清理缓存后进度不保留。
 
 ---
 
