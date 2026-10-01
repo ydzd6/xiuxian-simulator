@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d5">
+<meta name="format-detection" content="telephone=no">
+<title>修仙模拟器 · 一世一轮回</title>
+<meta name="description" content="一个网页文字修仙小游戏：随机灵根、择宗拜师、秘境奇遇、道侣情缘，五档结局六种人生。">
+<meta property="og:title" content="修仙模拟器 · 一世一轮回">
+<meta property="og:description" content="测灵根、选宗门、闯秘境、结道侣。这一世，你能走到哪一步？">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23efe6d5'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%239c2b23' font-family='serif'%3E仙%3C/text%3E%3C/svg%3E">
+<style>
+<!--STYLE-->
+</style>
+</head>
+<body>
+<div id="inkfall"></div>
+<div id="app">
+
+  <!-- ================= 标题页 ================= -->
+  <section id="screen-title" class="screen">
+    <div class="scroll">
+      <span class="seal-top">網 頁 文 字 遊 戲</span>
+      <h1 class="brush-title">修仙模拟器</h1>
+      <p class="sub">一世一轮回<br>测灵根 · 择宗门 · 闯秘境 · 结道侣</p>
+
+      <div class="field">
+        <label>道 号</label>
+        <input id="name-input" type="text" maxlength="8" placeholder="输入你的名字" autocomplete="off">
+      </div>
+
+      <div class="field" style="margin-top:14px">
+        <label>性 别</label>
+        <div class="gender-row">
+          <div class="gbtn sel" id="btn-male">男</div>
+          <div class="gbtn" id="btn-female">女</div>
+        </div>
+      </div>
+
+      <div style="margin-top:26px">
+        <button class="btn primary" id="btn-start">踏 入 仙 途</button>
+        <button class="btn ghost" id="btn-continue" style="display:none">继续上一世</button>
+        <div id="continue-info" style="display:none;text-align:center;font-size:12.5px;color:#6d6255;letter-spacing:.1em"></div>
+        <button class="btn ghost" id="btn-gallery" style="display:none">结局图鉴与成就</button>
+      </div>
+
+      <p class="footnote" id="stat-line"></p>
+    </div>
+  </section>
+
+  <!-- ================= 抽灵根 ================= -->
+  <section id="screen-roll" class="screen">
+    <div class="card">
+      <div class="roll-box">
+        <div class="roll-line">— 测 灵 根 —</div>
+        <div class="roll-big" id="roll-root"></div>
+        <div class="roll-desc" id="roll-root-desc"></div>
+        <hr class="hr-ink">
+        <div class="roll-line">— 出 身 —</div>
+        <div class="roll-big" id="roll-origin" style="font-size:24px"></div>
+        <div class="roll-desc" id="roll-origin-desc"></div>
+        <hr class="hr-ink">
+        <div class="roll-desc" id="roll-age"></div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:12.5px;color:#6d6255;letter-spacing:.14em" id="reroll-note"></div>
+    <div style="margin-top:16px">
+      <button class="btn gold" id="btn-reroll">重 开 一 世</button>
+      <button class="btn primary" id="btn-enter">就 此 落 定</button>
+    </div>
+  </section>
+
+  <!-- ================= 游戏主界面 ================= -->
+  <section id="screen-game" class="screen">
+    <div class="card hud" id="hud"></div>
+    <div class="card">
+      <div class="event-head">
+        <span class="t" id="event-title"></span>
+        <span class="turn" id="event-turn"></span>
+      </div>
+      <div class="event-text" id="event-text"></div>
+    </div>
+    <div id="event-choices">
+      <div class="choices" id="choices"></div>
+    </div>
+    <button class="btn gold" id="btn-breakthrough" style="display:none"></button>
+    <div id="result-box" class="result" style="display:none"></div>
+    <div style="text-align:center;margin-top:10px">
+      <button class="btn ghost" id="btn-chron-game">生平年表</button>
+    </div>
+  </section>
+
+  <!-- ================= 结算 ================= -->
+  <section id="screen-ending" class="screen">
+    <div class="card ending-wrap">
+      <div class="ending-tier" id="ending-tier"></div>
+      <div class="ending-name" id="ending-name"></div>
+      <div class="seal" id="ending-seal"></div>
+      <div class="ending-title" id="ending-title"></div>
+      <div class="ending-verdict" id="ending-verdict"></div>
+    </div>
+    <div class="card" id="ending-stats"></div>
+    <div class="card">
+      <div style="font-size:13px;letter-spacing:.24em;color:#6d6255;text-align:center;margin-bottom:8px">生 平 年 表</div>
+      <div class="chronicle" id="ending-chron"></div>
+    </div>
+    <button class="btn primary" id="btn-share">生 成 战 绩 图</button>
+    <button class="btn" id="btn-again">再 修 一 世</button>
+    <button class="btn ghost" id="btn-gal2">结局图鉴与成就</button>
+    <button class="btn ghost" id="btn-chron2">看完整生平</button>
+  </section>
+
+  <!-- ================= 生平 ================= -->
+  <section id="screen-chron" class="screen">
+    <div class="card">
+      <div style="font-size:13px;letter-spacing:.24em;color:#6d6255;text-align:center;margin-bottom:8px">生 平 年 表</div>
+      <div class="chronicle" id="chron-body" style="max-height:64vh"></div>
+    </div>
+    <button class="btn ghost" id="btn-chron-back">返 回</button>
+  </section>
+
+  <!-- ================= 图鉴 ================= -->
+  <section id="screen-gallery" class="screen">
+    <h2 class="brush-title" style="font-size:26px;letter-spacing:.3em">结 局 图 鉴</h2>
+    <div class="gal-grid" id="gal-grid"></div>
+    <div class="card" style="margin-top:16px">
+      <div style="font-size:13px;letter-spacing:.24em;color:#6d6255;text-align:center;margin-bottom:6px">成 就</div>
+      <div class="ach-list" id="ach-list"></div>
+    </div>
+    <p class="footnote" id="gal-stat"></p>
+    <button class="btn ghost" id="btn-gal-back">返 回</button>
+  </section>
+
+  <!-- ================= 分享图 ================= -->
+  <section id="screen-share" class="screen">
+    <h2 class="brush-title" style="font-size:24px;letter-spacing:.3em">战 绩 图</h2>
+    <p class="sub">长按图片保存，发到群里或朋友圈</p>
+    <div style="margin-top:16px">
+      <button class="btn primary" id="btn-share-make">生 成 图 片</button>
+    </div>
+    <div class="share-preview" id="share-result" style="display:none">
+      <img id="share-img" alt="战绩图">
+      <a class="btn center" id="btn-download" download="xiuxian.png" style="display:block;margin-top:12px;text-decoration:none">下 载 图 片</a>
+    </div>
+    <button class="btn ghost" id="btn-share-back">返 回</button>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script id="game-data" type="application/json"><!--DATA--></script>
+<script>
+<!--SCRIPT-->
+</script>
+</body>
+</html>

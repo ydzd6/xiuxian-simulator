@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d5">
+<meta name="format-detection" content="telephone=no">
+<title>修仙模拟器 · 一世一轮回</title>
+<meta name="description" content="一个网页文字修仙小游戏：随机灵根、择宗拜师、秘境奇遇、道侣情缘，五档结局六种人生。">
+<meta property="og:title" content="修仙模拟器 · 一世一轮回">
+<meta property="og:description" content="测灵根、选宗门、闯秘境、结道侣。这一世，你能走到哪一步？">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23efe6d5'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='%239c2b23' font-family='serif'%3E仙%3C/text%3E%3C/svg%3E">
+<style>
+/* ==========================================================================
+ * 修仙模拟器 · 水墨样式
+ * ========================================================================== */
+
+:root {
+  --ink: #1d1a16;
+  --ink-2: #453d33;
+  --ink-3: #6d6255;
+  --paper: #efe6d5;
+  --paper-2: #f7f1e4;
+  --paper-3: #e3d8c3;
+  --cinnabar: #9c2b23;
+  --jade: #4e6b52;
+  --gold: #a67c22;
+  --line: rgba(29, 26, 22, 0.22);
+  --line-soft: rgba(29, 26, 22, 0.1);
+  --shadow: 0 2px 10px rgba(60, 48, 32, 0.12), 0 10px 30px rgba(60, 48, 32, 0.07);
+  --kai: "STKaiti", "Kaiti SC", "KaiTi", "STSong", "Songti SC", "SimSun", "Noto Serif SC", serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--kai);
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(ellipse at 18% 8%, rgba(255, 255, 255, 0.75), transparent 55%),
+    radial-gradient(ellipse at 82% 92%, rgba(180, 160, 130, 0.28), transparent 60%),
+    radial-gradient(ellipse at 90% 12%, rgba(156, 43, 35, 0.05), transparent 45%),
+    repeating-linear-gradient(102deg, rgba(120, 100, 70, 0.035) 0 1px, transparent 1px 4px);
+  background-attachment: fixed;
+  font-size: 16px;
+  line-height: 1.85;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 飘落的墨点 */
+#inkfall { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+#inkfall i {
+  position: absolute;
+  top: -8vh;
+  display: block;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(40, 34, 28, 0.5), rgba(40, 34, 28, 0.08) 70%, transparent);
+  animation: fall linear infinite;
+  opacity: 0.5;
+}
+@keyframes fall {
+  0%   { transform: translate3d(0, -10vh, 0) scale(1); opacity: 0; }
+  12%  { opacity: 0.55; }
+  100% { transform: translate3d(6vw, 112vh, 0) scale(0.7); opacity: 0; }
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 18px 16px 40px;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  min-height: 100vh;
+}
+
+.screen { display: none; animation: fadeUp 0.45s ease both; }
+.screen.on { display: block; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------------------------------------------------------------- 通用 --- */
+
+.brush-title {
+  font-size: 34px;
+  letter-spacing: 0.22em;
+  text-align: center;
+  margin: 0;
+  font-weight: 400;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6), 0 3px 12px rgba(60, 48, 32, 0.16);
+}
+
+.sub { text-align: center; color: var(--ink-3); font-size: 14px; letter-spacing: 0.12em; margin: 6px 0 0; }
+
+.card {
+  position: relative;
+  background: linear-gradient(180deg, var(--paper-2), var(--paper));
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  box-shadow: var(--shadow);
+  padding: 18px 18px 16px;
+  margin: 16px 0;
+}
+.card::before, .card::after {
+  content: "";
+  position: absolute;
+  left: 6px; right: 6px;
+  height: 1px;
+  background: var(--line-soft);
+}
+.card::before { top: 5px; }
+.card::after { bottom: 5px; }
+
+.hr-ink {
+  height: 1px;
+  border: 0;
+  margin: 14px 0;
+  background: linear-gradient(90deg, transparent, var(--line), transparent);
+}
+
+/* -------------------------------------------------------------- 标题页 --- */
+
+.scroll {
+  margin-top: 6vh;
+  text-align: center;
+  padding: 10px 8px 24px;
+}
+.scroll .seal-top {
+  display: inline-block;
+  font-size: 12px;
+  letter-spacing: 0.4em;
+  color: var(--cinnabar);
+  border: 1px solid rgba(156, 43, 35, 0.45);
+  padding: 2px 8px 2px 12px;
+  margin-bottom: 14px;
+  border-radius: 2px;
+}
+.scroll .brush-title { font-size: 40px; letter-spacing: 0.18em; }
+.scroll .sub { margin-top: 12px; line-height: 2; }
+
+.field { margin: 22px auto 0; max-width: 340px; text-align: left; }
+.field label { display: block; font-size: 13px; color: var(--ink-3); letter-spacing: 0.2em; margin-bottom: 6px; }
+
+input[type="text"] {
+  width: 100%;
+  font-family: var(--kai);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--line);
+  padding: 8px 4px;
+  outline: none;
+}
+input[type="text"]:focus { border-bottom-color: var(--cinnabar); }
+
+.gender-row { display: flex; gap: 10px; margin-top: 16px; }
+.gender-row .gbtn {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 17px;
+  letter-spacing: 0.2em;
+  transition: all 0.18s;
+}
+.gender-row .gbtn.sel { background: var(--ink); color: var(--paper-2); border-color: var(--ink); }
+
+/* ---------------------------------------------------------------- 按钮 --- */
+
+.btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--kai);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 3px;
+  padding: 12px 14px;
+  margin: 9px 0;
+  cursor: pointer;
+  transition: transform 0.14s, background 0.18s, border-color 0.18s, color 0.18s;
+}
+.btn:hover { background: var(--ink); color: var(--paper-2); border-color: var(--ink); border-left-color: var(--cinnabar); }
+.btn:active { transform: scale(0.985); }
+.btn.center { text-align: center; letter-spacing: 0.2em; }
+.btn.primary {
+  background: var(--ink);
+  color: var(--paper-2);
+  border-color: var(--ink);
+  border-left-color: var(--cinnabar);
+  text-align: center;
+  letter-spacing: 0.24em;
+  font-size: 18px;
+}
+.btn.primary:hover { background: #322b23; }
+.btn.ghost { background: transparent; border-left-color: transparent; color: var(--ink-3); text-align: center; font-size: 14px; }
+.btn.ghost:hover { background: rgba(29, 26, 22, 0.06); color: var(--ink); }
+.btn.gold { border-left-color: var(--gold); }
+.btn[disabled] { opacity: 0.45; pointer-events: none; }
+
+.btn-row { display: flex; gap: 10px; margin-top: 12px; }
+.btn-row .btn { margin: 0; }
+
+/* ------------------------------------------------------------ 属性面板 --- */
+
+.hud { margin-top: 4px; }
+.hud-top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.hud-name { font-size: 19px; letter-spacing: 0.1em; }
+.hud-realm {
+  font-size: 13px;
+  color: var(--paper-2);
+  background: var(--ink);
+  padding: 1px 9px;
+  border-radius: 2px;
+  letter-spacing: 0.14em;
+}
+.hud-age { margin-left: auto; font-size: 13px; color: var(--ink-3); letter-spacing: 0.08em; }
+
+.cultbar { height: 5px; background: rgba(29, 26, 22, 0.1); margin-top: 9px; border-radius: 3px; overflow: hidden; }
+.cultbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--jade), var(--gold)); transition: width 0.5s ease; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 10px; }
+.chip {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--line-soft);
+  border-radius: 2px;
+  padding: 2px 7px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.chip b { font-weight: 400; color: var(--ink-3); margin-right: 3px; }
+.chip.warn { color: var(--cinnabar); border-color: rgba(156, 43, 35, 0.35); }
+.chip.up { color: var(--jade); }
+.chip.down { color: var(--cinnabar); }
+
+.toggle-hud {
+  font-size: 12px;
+  color: var(--ink-3);
+  text-align: right;
+  margin-top: 6px;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------ 事件正文 --- */
+
+.event-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.event-head .t { font-size: 21px; letter-spacing: 0.14em; }
+.event-head .turn { margin-left: auto; font-size: 12px; color: var(--ink-3); letter-spacing: 0.1em; }
+.event-head .t::before {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--cinnabar);
+  margin-right: 9px;
+  vertical-align: middle;
+  transform: rotate(45deg);
+}
+
+.event-text { font-size: 16.5px; line-height: 2.05; color: var(--ink); text-indent: 2em; }
+.event-text .cursor { display: inline-block; width: 0.6em; color: var(--cinnabar); animation: blink 0.9s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.choices { margin-top: 6px; }
+.choices .hint { font-size: 12px; color: var(--ink-3); text-align: center; letter-spacing: 0.16em; margin: 10px 0 4px; }
+
+.result {
+  border-left: 3px solid var(--ink-3);
+  background: rgba(255, 255, 255, 0.45);
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 2;
+  margin-top: 4px;
+  animation: fadeUp 0.4s ease both;
+}
+.result .rtag {
+  display: inline-block;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--paper-2);
+  background: var(--ink-3);
+  padding: 1px 8px;
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+.deltas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+/* -------------------------------------------------------------- 抽灵根 --- */
+
+.roll-box { text-align: center; padding: 8px 0 4px; }
+.roll-line { font-size: 15px; color: var(--ink-3); letter-spacing: 0.16em; }
+.roll-big {
+  font-size: 30px;
+  letter-spacing: 0.16em;
+  margin: 8px 0 2px;
+  animation: stamp 0.5s cubic-bezier(.2,1.6,.4,1) both;
+}
+@keyframes stamp {
+  0% { transform: scale(2.2); opacity: 0; }
+  60% { transform: scale(0.94); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.roll-desc { font-size: 14px; color: var(--ink-2); line-height: 1.9; margin-top: 8px; }
+
+/* -------------------------------------------------------------- 结算页 --- */
+
+.ending-wrap { text-align: center; padding-top: 10px; }
+.ending-tier { font-size: 13px; letter-spacing: 0.5em; color: var(--ink-3); }
+.ending-name { font-size: 42px; letter-spacing: 0.16em; margin: 10px 0 4px; }
+.ending-title { font-size: 17px; letter-spacing: 0.24em; color: var(--ink-2); }
+.seal {
+  display: inline-block;
+  width: 74px; height: 74px;
+  line-height: 70px;
+  font-size: 40px;
+  color: var(--cinnabar);
+  border: 3px double var(--cinnabar);
+  border-radius: 4px;
+  margin: 14px auto 6px;
+  transform: rotate(-6deg);
+  animation: stamp 0.6s cubic-bezier(.2,1.6,.4,1) both;
+}
+.ending-verdict { font-size: 15px; color: var(--ink-2); letter-spacing: 0.1em; margin-top: 6px; }
+
+.chronicle { max-height: 300px; overflow-y: auto; text-align: left; font-size: 14px; line-height: 1.95; }
+.chronicle .row { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--line-soft); }
+.chronicle .age { flex: 0 0 62px; color: var(--ink-3); font-size: 12.5px; padding-top: 3px; }
+.chronicle .txt { flex: 1; }
+.chronicle .txt em { font-style: normal; color: var(--ink-3); font-size: 13px; }
+
+.share-preview { text-align: center; margin-top: 12px; }
+.share-preview img { width: 100%; max-width: 340px; border: 1px solid var(--line); box-shadow: var(--shadow); border-radius: 2px; }
+
+/* ---------------------------------------------------------------- 图鉴 --- */
+
+.gal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+.gal-item {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  padding: 10px 6px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.gal-item.unlock { color: var(--ink); background: linear-gradient(180deg, var(--paper-2), var(--paper)); box-shadow: var(--shadow); }
+.gal-item .g-name { font-size: 14.5px; letter-spacing: 0.1em; display: block; margin-top: 4px; }
+.gal-item .g-seal { font-size: 20px; color: var(--cinnabar); }
+
+.ach-list { display: grid; gap: 8px; margin-top: 10px; }
+.ach {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.3);
+  font-size: 13.5px;
+  color: var(--ink-3);
+}
+.ach.on { color: var(--ink); background: rgba(255, 255, 255, 0.62); border-color: var(--line); }
+.ach .dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(29,26,22,0.18); flex: 0 0 auto; }
+.ach.on .dot { background: var(--cinnabar); }
+.ach .d { font-size: 12px; color: var(--ink-3); }
+
+.footnote { text-align: center; font-size: 12px; color: var(--ink-3); letter-spacing: 0.1em; margin-top: 22px; line-height: 2; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ink);
+  color: var(--paper-2);
+  font-family: var(--kai);
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  padding: 9px 20px;
+  border-radius: 3px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 99;
+  max-width: 84vw;
+  text-align: center;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 400px) {
+  .brush-title { font-size: 32px; }
+  .scroll .brush-title { font-size: 33px; }
+  .ending-name { font-size: 34px; }
+  .event-text { font-size: 16px; }
+  #app { padding-left: 13px; padding-right: 13px; }
+}
+
+</style>
+</head>
+<body>
+<div id="inkfall"></div>
+<div id="app">
+
+  <!-- ================= 标题页 ================= -->
+  <section id="screen-title" class="screen">
+    <div class="scroll">
+      <span class="seal-top">網 頁 文 字 遊 戲</span>
+      <h1 class="brush-title">修仙模拟器</h1>
+      <p class="sub">一世一轮回<br>测灵根 · 择宗门 · 闯秘境 · 结道侣</p>
+
+      <div class="field">
+        <label>道 号</label>
+        <input id="name-input" type="text" maxlength="8" placeholder="输入你的名字" autocomplete="off">
+      </div>
+
+      <div class="field" style="margin-top:14px">
+        <label>性 别</label>
+        <div class="gender-row">
+          <div class="gbtn sel" id="btn-male">男</div>
+          <div class="gbtn" id="btn-female">女</div>
+        </div>
+      </div>
+
+      <div style="margin-top:26px">
+        <button class="btn primary" id="btn-start">踏 入 仙 途</button>
+        <button class="btn ghost" id="btn-continue" style="display:none">继续上一世</button>
+        <div id="continue-info" style="display:none;text-align:center;font-size:12.5px;color:#6d6255;letter-spacing:.1em"></div>
+        <button class="btn ghost" id="btn-gallery" style="display:none">结局图鉴与成就</button>
+      </div>
+
+      <p class="footnote" id="stat-line"></p>
+    </div>
+  </section>
+
+  <!-- ================= 抽灵根 ================= -->
+  <section id="screen-roll" class="screen">
+    <div class="card">
+      <div class="roll-box">
+        <div class="roll-line">— 测 灵 根 —</div>
+        <div class="roll-big" id="roll-root"></div>
+        <div class="roll-desc" id="roll-root-desc"></div>
+        <hr class="hr-ink">
+        <div class="roll-line">— 出 身 —</div>
+        <div class="roll-big" id="roll-origin" style="font-size:24px"></div>
+        <div class="roll-desc" id="roll-origin-desc"></div>
+        <hr class="hr-ink">
+        <div class="roll-desc" id="roll-age"></div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:12.5px;color:#6d6255;letter-spacing:.14em" id="reroll-note"></div>
+    <div style="margin-top:16px">
+      <button class="btn gold" id="btn-reroll">重 开 一 世</button>
+      <button class="btn primary" id="btn-enter">就 此 落 定</button>
+    </div>
+  </section>
+
+  <!-- ================= 游戏主界面 ================= -->
+  <section id="screen-game" class="screen">
+    <div class="card hud" id="hud"></div>
+    <div class="card">
+      <div class="event-head">
+        <span class="t" id="event-title"></span>
+        <span class="turn" id="event-turn"></span>
+      </div>
+      <div class="event-text" id="event-text"></div>
+    </div>
+    <div id="event-choices">
+      <div class="choices" id="choices"></div>
+    </div>
+    <button class="btn gold" id="btn-breakthrough" style="display:none"></button>
+    <div id="result-box" class="result" style="display:none"></div>
+    <div style="text-align:center;margin-top:10px">
+      <button class="btn ghost" id="btn-chron-game">生平年表</button>
+    </div>
+  </section>
+
+  <!-- ================= 结算 ================= -->
+  <section id="screen-ending" class="screen">
+    <div class="card ending-wrap">
+      <div class="ending-tier" id="ending-tier"></div>
+      <div class="ending-name" id="ending-name"></div>
+      <div class="seal" id="ending-seal"></div>
+      <div class="ending-title" id="ending-title"></div>
+      <div class="ending-verdict" id="ending-verdict"></div>
+    </div>
+    <div class="card" id="ending-stats"></div>
+    <div class="card">
+      <div style="font-size:13px;letter-spacing:.24em;color:#6d6255;text-align:center;margin-bottom:8px">生 平 年 表</div>
+      <div class="chronicle" id="ending-chron"></div>
+    </div>
+    <button class="btn primary" id="btn-share">生 成 战 绩 图</button>
+    <button class="btn" id="btn-again">再 修 一 世</button>
+    <button class="btn ghost" id="btn-gal2">结局图鉴与成就</button>
+    <button class="btn ghost" id="btn-chron2">看完整生平</button>
+  </section>
+
+  <!-- ================= 生平 ================= -->
+  <section id="screen-chron" class="screen">
+    <div class="card">
+      <div style="font-size:13px;letter-spacing:.24em;color:#6d6255;text-align:center;margin-bottom:8px">生 平 年 表</div>
+      <div class="chronicle" id="chron-body" style="max-height:64vh"></div>
+    </div>
+    <button class="btn ghost" id="btn-chron-back">返 回</button>
+  </section>
+
+  <!-- ================= 图鉴 ================= -->
+  <section id="screen-gallery" class="screen">
+    <h2 class="brush-title" style="font-size:26px;letter-spacing:.3em">结 局 图 鉴</h2>
+    <div class="gal-grid" id="gal-grid"></div>
+    <div class="card" style="margin-top:16px">
+      <div style="font-size:13px;letter-spacing:.24em;color:#6d6255;text-align:center;margin-bottom:6px">成 就</div>
+      <div class="ach-list" id="ach-list"></div>
+    </div>
+    <p class="footnote" id="gal-stat"></p>
+    <button class="btn ghost" id="btn-gal-back">返 回</button>
+  </section>
+
+  <!-- ================= 分享图 ================= -->
+  <section id="screen-share" class="screen">
+    <h2 class="brush-title" style="font-size:24px;letter-spacing:.3em">战 绩 图</h2>
+    <p class="sub">长按图片保存，发到群里或朋友圈</p>
+    <div style="margin-top:16px">
+      <button class="btn primary" id="btn-share-make">生 成 图 片</button>
+    </div>
+    <div class="share-preview" id="share-result" style="display:none">
+      <img id="share-img" alt="战绩图">
+      <a class="btn center" id="btn-download" download="xiuxian.png" style="display:block;margin-top:12px;text-decoration:none">下 载 图 片</a>
+    </div>
+    <button class="btn ghost" id="btn-share-back">返 回</button>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script id="game-data" type="application/json">{"events":[{"id":"d01_01","title":"槐下怪梦","weight":12,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"你梦见自己站在一条通天台阶下，台阶一级一级往上，望不到头。梦里有人在你耳边数数，一级，两级，你听着听着就往上走。走到第九级时脚下一空，你低头一看，脚下的台阶全是白骨垒起来的，白得晃眼，你却没觉得怕。醒来时天刚亮，爹在院里磨镰刀，娘说你夜里喊了半宿，是不是又被村口的野猫吓着了。","choices":[{"text":"把梦原原本本讲给爹娘听","effect":{"cult":12,"mind":4,"luck":-3,"flagAdd":["槐下怪梦"],"log":"槐下怪梦，说与爹娘"},"result":"娘听完脸色变了，爹沉默半天，带你去老槐树下烧了三张纸。他说梦是反的，叫你以后别往东山那边跑。说这话时他蹲下来，看了你很久。"},{"text":"瞒下来，深夜独自去槐树下","effect":{"cult":22,"luck":5,"mind":-3,"flagAdd":["槐下怪梦"],"log":"独赴老槐树下"},"result":"你对着树磕了三个头，什么也没求。回家路上觉得背后有人跟着你走了一段，回头看只有月光。那夜之后你睡觉踏实了，像是把什么东西留在了树底下。"}]},{"id":"d01_02","title":"白狐衔药","weight":11,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"背阴坡的药最难采，你手脚并用往上爬，指甲缝里全是泥。崖边有一丛柴胡，你伸手过去，先摸到的是血，温的，结了壳。一只白狐前爪被兽夹咬住，夹齿已经锈了，血干成黑壳。它没有叫，也没有挣，只是抬起眼来看你。那眼神不像畜生，倒像村里那些把疼忍惯了的人。","choices":[{"text":"掰开兽夹放它走","effect":{"cult":18,"mind":8,"luck":4,"wealth":-20,"rel":{"白狐":10},"flagAdd":["放生白狐"],"log":"背阴坡放走白狐"},"result":"铁夹锈得厉害，你掰了很久，虎口裂开一道口子。白狐没跑，围着你转了半圈才进林子。那天你没采到药，回家挨了一顿骂，晚上伤口结痂结得很快。"},{"text":"连夹子一起扛下山换钱","effect":{"wealth":40,"luck":-6,"mind":-5,"log":"卖狐换钱"},"result":"皮货商人给了四十文，说这皮子干净，没伤着几处。你揣着钱回家，一路上那狐狸没再叫过一声，你也就没想起它。钱花得很快，两天就没了。"},{"text":"记下位置，明天带盐和布来","effect":{"cult":10,"mind":5,"luck":3,"flagAdd":["放生白狐"],"log":"记下白狐位置"},"result":"第二天你带了盐水和干净布条上山，兽夹空了，地上有拖行的痕迹，一路往林子深处去。你把布条挂在树杈上才下山。此后你在山里走，总觉得有东西远远跟着你。"}]},{"id":"d01_03","title":"镇上测灵根","weight":12,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"镇上来了仙门执事，青布衫，腰上挂一块玉牌，站在石桥底下不避人，衣裳干净得不像赶过路。村里半大的孩子都被爹娘赶去排队，从桥头排到肉铺门口。轮到你时，他指尖点在你眉心，看了很久，什么也没说，只在名册上写了一笔。你看不见那一笔写的是什么，只觉得眉心凉了一整个下午。","choices":[{"text":"追上去问他那一笔写了什么","effect":{"cult":15,"mind":6,"luck":3,"flagAdd":["名册一笔"],"log":"名册上有你一笔"},"result":"他停下脚步，把名册合上按在胸口，说写着你在册上会得点东西，但不会太多。他又看你一眼，说这样反而好，得太多的人，命都不长。"},{"text":"请他去家里喝碗热粥","effect":{"wealth":-30,"cult":25,"mind":5,"rel":{"玄虚道人":5},"log":"请执事喝粥"},"result":"他真来了，坐在你家门槛上把粥喝得干干净净。临走前他拿筷子蘸着粥汤在桌上画了一道弯线，说照这个挪气，不容易死。娘擦桌子时把线擦了，你记在了心里。"},{"text":"转身把位置让给后面的孩子","effect":{"luck":8,"mind":4,"fame":6,"log":"让出测灵根位置"},"result":"后面那个孩子是他娘背来的，腿不好。执事看了你一眼，什么也没说，把名册又翻开添了一笔。那天下午你回家割了一整捆草，天黑前就割完了。"}]},{"id":"d01_04","title":"破庙乞儿","weight":11,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"雨大得像有人在屋顶上筛豆子，你抱着半块干粮钻进村外那座破庙。神像只剩半个脑袋，嘴角还挂着半道金漆，供桌上积的灰能写字。香案底下缩着一个人，跟你差不多岁数，怀里的破碗是空的，碗沿缺了个口。他看见你手里的干粮，喉咙动了一下，没伸手，把眼睛移开了。","choices":[{"text":"把干粮掰一半递过去","effect":{"mind":8,"cult":15,"wealth":-15,"rel":{"乞儿":10},"flagAdd":["破庙乞儿"],"log":"破庙分食"},"result":"他吃得很快，吃完把碗底舔得发亮，然后认真地看你，说这个他会记着。雨停时他先走，走前在供桌上用指甲划了一道痕，说以后你看见这道痕，就有人欠你一顿饭。"},{"text":"脱下旧外衣给他，自己冒雨走","effect":{"mind":6,"luck":4,"cult":8,"log":"破庙赠衣"},"result":"他接衣服的样子很别扭，像从来没接过别人的东西。你冒雨跑回家，烧了一夜，第二天照样下地。那片旧衣后来出现在你家的柴垛上，叠得整整齐齐。"},{"text":"把干粮收进怀里，出庙去","effect":{"wealth":5,"mind":-6,"log":"破庙未施援手"},"result":"你走到庙门口回头看了一眼，他还缩在原处，没有看你，也没有再动。那一眼你记了很久，久到后来很多次你都想，当时要是掰一半会怎么样。"}]},{"id":"d01_05","title":"界石南移","weight":11,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"王大奎把界石往南挪了三尺，你家河边那块好田就归了他。那块地是祖上传下来的，界石还是你爷爷那辈埋下的，石头底下压着半片瓦。爹握着镰刀站在田埂上，手背上的青筋鼓了半天，最后还是把镰刀放下了。娘说算了，他在镇上有亲戚。那块田今年刚下过肥，土是黑的。","choices":[{"text":"在祠堂前当着族老的面理论","effect":{"fame":12,"mind":5,"wealth":60,"cult":10,"log":"祠堂前争田"},"result":"族老们不好装作没看见。王大奎被驳了面子，田是挪回来了，但他临走时指着你家的门框说了句话。此后你走夜路，偶尔会觉得身后有脚步声，不紧不慢地跟着。"},{"text":"先认下，转头去镇上学门手艺","effect":{"wealth":80,"cult":20,"luck":5,"fame":-8,"log":"弃田学手艺"},"result":"铁匠铺的师父收了你，管饭不给工钱。你抡了三个月锤，胳膊粗了一圈。田的事家里再没人提，爹蹲在门口抽了一夜旱烟，第二天照常下地。"},{"text":"夜里独自去把界石挪回来","effect":{"cult":25,"luck":6,"mind":12,"fame":-5,"log":"夜挪界石"},"result":"石头比你想的重，挪完你在田埂上坐了半天，手心磨掉一层皮。半个月后听说王大奎家的耕牛死了，村里人都说是报应。你没说话，那阵子你睡得格外好。"}]},{"id":"d01_06","title":"半面铜镜","weight":10,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"你在河里摸鱼，水凉得刺骨，脚底下踩到一块硬东西，捞上来是半面铜镜，边缘像是被什么咬断的，断口很利。镜背的花纹都锈进了铜里，只剩半个字，横平竖直，你认不出是刻的还是蚀出来的。你随手照了一下，镜里那张脸看着比你老上十来岁，眉眼却还是你的，正冲你笑。","choices":[{"text":"擦干净，用布包好收起来","effect":{"cult":30,"luck":6,"mind":-5,"flagAdd":["半面铜镜"],"log":"拾得半面铜镜"},"result":"你把它藏在房梁上。夜里翻身时，总觉得梁上有极轻的一声响，像金属碰了一下木头。过了些日子你就不在意了，它一直在那个位置，直到很多年以后。"},{"text":" 扔回河里，就当没捞着","effect":{"cult":10,"luck":-5,"mind":4,"log":"掷镜还河"},"result":"铜镜落水时没溅起多少水花，反而在水面上浮了一下才沉下去。你盯着那片水看了很久。回家路上你一直在想那半个字，想到最后连它的样子都记不清了。"},{"text":"拿去镇上的铜匠铺子估个价","effect":{"wealth":50,"cult":20,"luck":-8,"fame":4,"log":"铜镜换钱"},"result":"老铜匠把手里的活计停了，翻来覆去看了半炷香，最后问你是在哪儿捡的。他给了你五十文，收了镜子，还多送你一句：这种东西，原先不该用铜来做。"}]},{"id":"d01_07","title":"墙外听书","weight":11,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"私塾的墙根底下正好有一块垫脚的青石，石面上被人踩出一层包浆，滑得很。先生正在里面讲天地有气，声音不高，一个字一个字地落下来，穿过窗纸全进了你的耳朵。你想再往前凑半步，又怕影子落到窗户上。日头在墙头上爬得极慢，那块青石被你站得发烫，脚心都出了汗。","choices":[{"text":"站到散学，把听到的全背下来","effect":{"cult":25,"mind":8,"flagAdd":["墙外听讲"],"log":"墙外偷听讲书"},"result":"先生讲了整整一下午，你回家路上一边走一边默，到家时能把开头那段一字不错地背出来。你不识字，但那几句句子像钉子一样钉在脑子里，拔不出来。"},{"text":"翻墙进去，就坐在最后面","effect":{"cult":40,"mind":10,"fame":6,"wealth":-15,"flagAdd":["先生赠字"],"log":"翻墙入学"},"result":"先生把你从地上拎起来，戒尺举得老高，最后落在桌角上。他只说了三个字：坐后面。你识的字都是他教的，他从来没认过你这个学生，也从来没赶过你。"},{"text":"听半段就回家干活","effect":{"cult":12,"luck":5,"wealth":20,"mind":-3,"log":"听半段归家"},"result":"你回去时正好赶上收谷上场，木锨递过来，爹没骂你。那年收成不错，谷子干得快，堆在场上金灿灿一片。你干活的时候嘴里一直含着一句话，含到天黑也没含完。后来你把它忘了，忘得很干净。"}]},{"id":"d01_08","title":"母病药钱","weight":12,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"娘咯血咳了整宿，枕巾上洇开一小片暗红。郎中来看了，说是肺上的寒气，方子开得起，药钱要三两。他把方子递过来时叹了口气，说这方子我认得，可我也有家要养。你站在炕边，听着她的呼吸一声比一声浅，屋外的天开始泛白，鸡叫了头一遍，邻家的门轴也跟着响了。","choices":[{"text":"去镇上药铺赊账按手印","effect":{"cult":20,"wealth":-150,"mind":-10,"flagAdd":["母病未愈"],"log":"为母赊药钱"},"result":"利钱三分。债主把纸按在桌上，你按了手印。药抓回来了，娘喝了能坐起来。那个三分利像块石头压在你家梁上，压了整整一年，谁都不提，谁都记得。"},{"text":"进山采那味险药","effect":{"cult":60,"mind":15,"flagAdd":["母亲痊愈"],"log":"进山采药救母"},"result":"书里说那味药长在背阴的石缝下。你在山里转了两天，摸到那道石缝时手已经冻得不听使唤。药是真的。娘喝了三剂就能下地，她问你在哪儿采的，你没说。"},{"text":"把祖母的玉佩拿去典当","effect":{"cult":15,"wealth":120,"luck":-10,"mind":-6,"flagAdd":["母亲痊愈"],"log":"典当祖传玉佩"},"result":"当铺老板压价压得极狠，玉是好玉，他只给了一半的价。药抓回来了，娘的病好了。玉赎不回来。过年时娘问起那块玉，你说收起来了，她点点头，没再问。"}]},{"id":"d01_09","title":"山贼夜袭","weight":10,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"火把从村口一直连到河边，一盏接一盏，像谁把火星子撒了一路。狗叫得不成样子，爹把你从床上拽起来往祠堂那边推，说族里的男人要守门，你听见自己的心跳得比锣还响。你才十几岁，跑出去两步才发现娘还在屋里翻柜子找东西。风里有油烧焦的味道，祠堂的铜锣被谁敲响了第一声。","choices":[{"text":"留下和大家一起敲锣守门","effect":{"fame":20,"mind":8,"cult":30,"flagAdd":["守村之夜"],"log":"守村抗贼"},"result":"铜盆敲破了，手也震麻了，天亮时贼退了，村口那棵老槐树烧掉了一半。族老拍着你的肩说了句好样的。三天后有人在山上看见一伙人扎营，离得不远。"},{"text":"冲回屋里把娘背出来","effect":{"cult":25,"mind":15,"luck":8,"fame":-5,"log":"火中背母"},"result":"你把她从柜子底下拽出来的时候房梁正好塌下来半根，砸在你身后的地上。娘在你背上一直说没事没事。祠堂那边有人回头看见了，也有人说你临阵乱跑。"},{"text":"顺着后山路先躲进林子","effect":{"luck":-8,"mind":-15,"cult":10,"log":"夜奔后山"},"result":"你在山路上跑到天亮，鞋跑丢了一只，回头看村子还在冒烟。天亮后你回去，房子还在，人也在，只是爹一整天没跟你说话。你自己也没敢先开口。"}]},{"id":"d01_10","title":"月下剑光","weight":12,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"你在院里纳凉，忽然看见东山方向有一道白光横过天去，细得像一根线，收得极快，收回去的地方像是有人在那里站着。前后不过一瞬，蛙声全停了又响起，你的耳朵却嗡嗡响了好一阵。那晚你数到三更还没睡着，翻来覆去地想那道线是怎么收回去的，院墙外的蟋蟀叫得很齐。","choices":[{"text":"顺着剑光的方向往山里走","effect":{"cult":30,"mind":10,"luck":5,"wealth":-10,"flagAdd":["东山剑光"],"log":"夜追东山剑光"},"result":"你追到天快亮，一直追到东山的山腰，什么也没看见，鞋磨破了一双。回来时在山道边捡到一片叶子，叶面上有一条笔直的口子，像是被什么割开的。"},{"text":"冲着东山深深行礼","effect":{"mind":12,"cult":15,"fame":5,"log":"望东山行礼"},"result":"你朝那个方向磕了三个头，膝盖磕在石子上磕破了皮。你不知道自己在拜什么，但心里踏实。那之后你每天睡前都会往东山那边看一眼，看了很多年。"},{"text":"在村口石头上刻下剑痕","effect":{"cult":22,"mind":5,"luck":-3,"flagAdd":["石上剑痕"],"log":"石上摹刻剑痕"},"result":"你手抖，刻得歪歪扭扭，跟那道光半分都不像。后来你每天路过都照着那几道刻痕比划一遍。有外乡人路过看了一眼，笑了一声，问你这是跟谁学的。"}]},{"id":"d01_11","title":"道人借宿","weight":11,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"一个老道士叩你家的门，说要借宿一晚。他身上的味道比雨前的河还重，道袍下摆全是泥，袖口磨得发亮，只有一双眼睛亮得不像这个岁数的人。你娘还是给他添了碗稀饭，又把灶房的草铺厚了些，他道了谢就睡在灶房。天亮时他站在水缸边上看了很久，说你这缸水放错了地方。","choices":[{"text":"追问他是不是认得你","effect":{"cult":30,"mind":8,"rel":{"玄虚道人":15},"flagAdd":["欠你一饭"],"log":"老道借宿留话"},"result":"他眯起眼睛笑起来，说不上认得，只是欠你一饭。你正想问哪一顿，他已经走出院门。后来你翻遍记忆也想不出自己什么时候给过他饭，但这句话你记了一辈子。"},{"text":"照他说的把水缸挪到南墙根","effect":{"luck":10,"mind":6,"cult":8,"rel":{"玄虚道人":5},"log":"依言挪动水缸"},"result":"水缸沉，你和爹挪了半日。那年秋天你家的井水喝起来确实比别家甜些，邻家来讨水的人多了。爹说是缸的位置好，娘说是老道士有本事。你想的跟他们都不太一样。"},{"text":"天亮送他出村，一直送到山口","effect":{"cult":18,"mind":10,"fame":5,"luck":4,"flagAdd":["送道出村"],"log":"送老道至山口"},"result":"他一路没说话，到了山口才回头，说别送了。他从袖子里摸出半块干饼塞给你，饼硬得能砸核桃。你站在原地看着他走远，那半块饼你啃了三天。"}]},{"id":"d01_12","title":"集市糖人","weight":12,"once":true,"cond":{"realmMax":1,"turnMax":12},"text":"腊月集市，卖糖人的老汉支着草把子，上面插着一片糖做的走兽，腾得不高，太阳一照透亮。最便宜的山楂串三文钱，最贵的糖龙要二十文，你摸了摸怀里的铜板，数了两遍。他吹糖的时候腮帮子鼓得跟青蛙一样，你站在摊子前看了小半个时辰，脚都冻麻了，他还是没赶你走。","choices":[{"text":"请他照着你的样子捏一个","effect":{"wealth":-20,"mind":8,"luck":5,"flagAdd":["糖人自画像"],"log":"买糖人照己身"},"result":"他捏出来的那个东西丑得离谱，你舍不得吃，插在床头看了三天，最后化成一摊糖水。老汉收钱时说了句：捏得不像，你别往心里去，人这一辈子也不像自己。"},{"text":"问他嘟囔的那句是什么意思","effect":{"cult":20,"mind":5,"luck":6,"wealth":-10,"flagAdd":["糖人暗语"],"log":"问明糖人暗语"},"result":"刚才他吹糖时嘟囔了一句，里头有个词你在私塾墙外听过，当时没记住。老汉手上不停，说小孩子别学这个。他还是说了一遍，说完自己乐了，多给了你一支小的。"},{"text":"只买最便宜的一串山楂","effect":{"wealth":-10,"mind":5,"cult":5,"log":"集市买糖串"},"result":"你把三文钱递过去，挑了一串最红的，一路咬到村口，牙酸了一整个下午。晚饭时你吃不下东西，娘以为你病了，摸了你半天额头，你也没敢说是糖吃多了。"}]},{"id":"d01_13","title":"镇口择宗","weight":50,"once":true,"cond":{"noSect":true,"realmMin":1},"text":"你下山那日，在镇口被人拦下。来人穿一件洗得发白的青衫，翻着一本厚名册，翻到某一页停住了，说你的名字上个月被人圈了一笔，按规矩你有一次挑宗门的机会。他把六个名字报给你听：青云剑宗、丹霞谷、天音阁、万魔殿、散修联盟、合欢宗。他说各家有各家的活法，选错了也别怨人。你就站在镇口，风把你的衣角吹得一下一下。","choices":[{"text":"青云剑宗：剑要直，人要硬","effect":{"sectJoin":"青云剑宗","cult":120,"mind":12,"fame":10,"wealth":-50,"log":"拜入青云剑宗"},"result":"接引你的是个背剑的女子，姓沈，一路上只说过两句话，其中一句是叫你把背挺直。青云的规矩最难看懂，同门之间比同门之间更狠。但真有人欺负你的时候，剑宗的人从不问你打得过打不过。"},{"text":"丹霞谷：有药有谷，饿不着","effect":{"sectJoin":"丹霞谷","wealth":200,"cult":70,"mind":5,"contribution":10,"rel":{"白芷":10},"log":"拜入丹霞谷"},"result":"谷口的药田一层层铺到半山，风一过全是苦香。分给你的是一炉火和一屋子药柜，从此你要守着它。这里的人说话都慢，救人也慢，杀人的时候也慢，只是那一下特别准。"},{"text":"天音阁：弦上能听人心","effect":{"sectJoin":"天音阁","cult":60,"mind":8,"luck":8,"rel":{"苏婉儿":15,"顾长歌":10},"log":"拜入天音阁"},"result":"阁里第一日就有人塞给你一张琴，弹不成调也不许停。教你的师兄姓顾，笑着说音修最大的毛病是多情，最大的本事也是多情。小师妹苏婉儿把点心藏在琴匣里，被罚抄了三天谱。"},{"text":"万魔殿：快，只要你敢要","effect":{"sectJoin":"万魔殿","cult":260,"mo":12,"fame":12,"mind":-5,"log":"投身万魔殿"},"result":"殿门前的石阶是黑的，据说是踩出来的。他们不问你出处，只看你撑不撑得住。三个月抵得上别人三年，代价是每天都要重新证明自己配站在那里。圣女的轿子从你身边过去时停了一瞬。"},{"text":"散修联盟：没靠山，也没人管","effect":{"sectJoin":"散修联盟","luck":12,"cult":80,"mind":6,"wealth":20,"log":"入散修联盟"},"result":"联盟不过是一处挂着旧幌子的院子，谁来谁走都由自己。有人教你半套身法就没了下文，有人借你二十块灵石再没出现过。最大的好处是自在，最大的坏处也是自在，摔倒时没人扶。"},{"text":"合欢宗：名声难听，诺最重","effect":{"sectJoin":"合欢宗","cult":50,"mind":10,"luck":6,"fame":-12,"rel":{"苏婉儿":12,"姜雪璃":5},"log":"拜入合欢宗"},"result":"山门外的桃花一年开两季，门口迎你的女子先递给你一纸契，上面写着同门不得相欺，违约者道心自损。她说外头把我们说得难听，我们懒得辩，但宗里的人说话算数。"}]},{"id":"d02_01","title":"剑碑参悟","weight":9,"once":true,"cond":{"sect":["青云剑宗"],"realmMin":1,"realmMax":3},"text":"后山荒崖上立着三十六块剑碑，碑面无字，只有历代剑修留下的剑意。你在此参悟三日，剑意如潮，唯独第七块碑上那道最深的口子毫无动静。守碑的老剑修说，那道痕是一位百年前的长老用断剑刻的，刻完他说了两个字：不悟。你想再坐一会儿，胸口那口气却已经堵得发闷。","choices":[{"text":"不动，再坐两日","effect":{"cult":70,"mind":5,"log":"静坐剑碑两日"},"result":"你不去碰那道口子，只把三十六块碑一块块重看。第二日夜里，那道深深的刻痕自己亮了一下，像有人在说，先学会不悟。你起身时腿麻得几乎站不住，可剑意第一次顺着呼吸走完了全身。"},{"text":"以自身剑意强碰碑面","effect":{"cult":210,"mind":-7,"contribution":20,"log":"强碰剑碑"},"result":"你把剑意全压上去，碑身嗡了一声，那道旧痕被你硬生生撬开一道缝。你胸口一甜，血染红了半幅袖子，碑上却多出一道属于你的新痕，比所有人的都浅，但确实是你的。守碑老剑修看了一眼，没说话，替你上了药。"},{"text":"在碑侧刻下自己的名字","effect":{"fame":14,"contribution":-20,"flagAdd":["剑碑留名"],"log":"剑碑刻名"},"result":"你找了块空白的碑侧，把名字刻了上去，笔画尽量端正。三个月后有人路过看见，说青云剑宗出了个狂徒。宗门罚了你二十点贡献，那名气却没散，山下已经有人打听你的名字。"}]},{"id":"d02_02","title":"剑意比试","weight":10,"once":true,"cond":{"sect":["青云剑宗"],"realmMin":1,"realmMax":3},"text":"内门比试那天，演武场四面的石阶上坐满了人，执剑长老点了你的名字。对手周衍已经连赢八场，站在那里把剑尖朝下压了三寸，让你先出剑。台下弟子挤成一圈，有人喊你的名字，也有人等着看你摔下去。长老在台上说，宗门之内不问输赢，只问敢不敢把剑递到自己够得着的地方。","choices":[{"text":"堂堂正正递出一剑","effect":{"cult":110,"contribution":60,"rel":{"沈青霜":12},"log":"剑意比试八场止步"},"result":"你把剑意收成一线，正面刺出去。周衍挡了，也退了半步。三十招后你腕骨发麻，剑脱手，可全场静了一息才响起掌声。沈青霜从人群外走过，什么也没说，只把掉在地上的剑踢回你脚边。"},{"text":"使诈攻他伤处","effect":{"fame":6,"contribution":20,"rel":{"沈青霜":-15},"mo":6,"log":"比试取巧胜周衍"},"result":"你早看见他左肩旧伤未愈，剑走偏锋，专挑那半边递。第七剑他就丢了兵器。台下有人鼓掌，也有人低低骂了一声。沈青霜当场转身走了，走出三步又停下来，回头看了你一眼。"},{"text":"认输，看完全场","effect":{"mind":6,"cult":40,"log":"认输观剑"},"result":"你抱剑认输，退到台下，把周衍后面九场全看完了。他起手、换气、收势的节奏你记了个遍。散场时长老拍了拍你的肩：知道自己现在不该打，比打赢难。这一夜你练剑到天亮。"}]},{"id":"d02_03","title":"护山剑阵","weight":8,"once":true,"cond":{"sect":["青云剑宗"],"realmMin":1,"realmMax":3},"text":"护山大阵需要七名剑修同时镇守剑眼，缺一人整座阵就漏风。掌门亲自点了你的名，说这活三年一轮，从前守过阵的人里，两个下了山，一个没回来。你去看过剑眼，那是一道直通地底的深沟，里面全是断剑，风一过就呜呜地响，像有人在下面挨个喊名字，喊到某一个时声音会顿一下。","choices":[{"text":"接剑眼，守满三年","effect":{"contribution":120,"cult":90,"mind":8,"age":3,"flagAdd":["剑冢残卷"],"log":"守剑眼三年"},"result":"你在剑眼边坐了三年，风把脸吹得粗糙。第二年冬天，一道洪流从沟底涌上来，你在断剑堆里捡到半卷残页，上面记着护山剑阵的第七种变阵。出来那天，守门弟子没认出你，看清后才行了个大礼。"},{"text":"先与同门推演三夜再接班","effect":{"contribution":80,"mind":5,"rel":{"顾长歌":10},"log":"推演剑阵三夜"},"result":"你拉着顾长歌在阵图上划了三夜，把七处剑眼的换气顺序全排了一遍。接班后你按图轮值，三年间阵眼一次没乱。顾长歌说这不算本事，算命硬，说完自己先笑了，把最后一坛酒留给了你。"},{"text":"推掉这门差事","effect":{"contribution":-30,"fame":-8,"log":"推掉守阵差事"},"result":"你说自己修为太浅，怕误了大事。掌门没有多问，只把名字从名册上划了。之后半年你再去剑冢附近，守阵的弟子会客客气气地请你绕路。那半年你确实多练了几百遍剑，也确实总觉得自己少了点什么。"}]},{"id":"d02_04","title":"丹炉出事","weight":10,"once":true,"cond":{"sect":["丹霞谷"],"realmMin":1,"realmMax":3},"text":"三更天，丹房的炉火忽然失了控。那是给外门弟子配的筑基丹，一炉七十二枚，火候过了就是毒。守在炉边的执事弟子吓得直哆嗦，抓着你的袖子让你快去禀报长老。可你数得清，等长老从后山赶回来，这炉丹已经废得连渣都不剩，连丹房都会烧掉半边，火已经舔上了梁。","choices":[{"text":"立刻开炉取丹","effect":{"cult":60,"contribution":100,"mind":-6,"rel":{"白芷":10},"log":"开炉救下七十二丹"},"result":"你用袖子裹住手掀开炉盖，热浪扑上脸，眉毛燎掉了一半。七十二枚丹取出来，四十一枚还能用。你两条小臂烫出成片水泡，白芷来看你时眉头拧得很紧，一句话没说，把最好的药膏整盒按在你床头。"},{"text":"先撤火，再喊人救丹","effect":{"contribution":40,"fame":4,"log":"撤火保下丹房"},"result":"你先掀了炉底的引火砖，火势稳住了，丹房保住了，那炉丹却全废。长老回来只看了一眼，说丹房比丹值钱。执事弟子被罚去种药，你得了四十点贡献，还有他此后每次见你都躲着走的背影。"},{"text":"趁乱把两枚丹揣进怀里","effect":{"wealth":90,"contribution":-25,"mind":-5,"log":"趁乱藏丹两枚"},"result":"你把两枚尚好的丹塞进袖袋，转手在坊市换了九十块下品灵石。回谷时你一直觉得有人在背后看，回头却只有烧黑的门框。后来那炉丹清点少了三枚，没人查到你头上。你也没再吃过那两枚丹。"}]},{"id":"d02_05","title":"药园看守","weight":9,"once":true,"cond":{"sect":["丹霞谷"],"realmMin":1,"realmMax":3},"text":"药园西角那株三千年灵芝进了最后一段成熟的时节，谷里派你看守十日。白芷送来饭食，临走时说了一句，去年也有人看过它，看着看着就没了。你当时只当她随口一提。夜里灵芝周围浮起一层白雾，你闻见甜味顺着鼻子往脑子里钻，也听见自己心口跳得比平时重了一倍。","choices":[{"text":"寸步不离守满十日","effect":{"contribution":90,"mind":8,"rel":{"白芷":10},"log":"守夜十日"},"result":"十夜你没合眼，用剑鞘把自己的手腕和白芷送来的小凳腿绑在了一处。灵芝成熟那日，谷里长老亲来采摘，分了你半片叶。白芷把叶收走晒干，说这个冬天给你留着，你那张脸实在不像气血足的人。"},{"text":"摘一小片叶收好","effect":{"wealth":160,"contribution":-30,"mind":-4,"log":"私摘灵芝叶"},"result":"你趁雾浓时摘下一小片叶，藏在鞋底带出药园。坊市上有人肯出一百六十块灵石，你卖了，钱袋沉甸甸的。那半月你走路都绕着药园走。白芷始终没提这事，只是后来再送饭，饭盒总是放在门口。"},{"text":"查查去年是谁动的手脚","effect":{"contribution":70,"fame":8,"rel":{"白芷":18},"log":"查出偷药之人"},"result":"你翻了三天的出入记录，比对药渣，最后在杂役房的一个旧坛子里找到了去年那株灵芝的残根。偷药的人被逐出谷门。白芷知道后把手里的药杵放下来，说了句原来不是我记错了。那天她做了一锅很甜的粥。"}]},{"id":"d02_06","title":"丹方被窃","weight":8,"once":true,"cond":{"sect":["丹霞谷"],"realmMin":1,"realmMax":3},"text":"谷中三张秘传丹方的拓本少了一张，石室门禁完好，墙上也没有撬动的痕迹，锁扣甚至还是温的。长老只把知情的人叫来对了一遍口供，就把这事压下了。可你记得清楚，那几天进出石室的人里，有一个是你的旧交，他最近在外面的坊市里出手很大，前几日还换了一身新袍子。","choices":[{"text":"循着坊市自己查下去","effect":{"contribution":80,"fame":10,"wealth":-60,"log":"查明丹方下落"},"result":"你在坊市蹲了六天，花了六十块灵石买通一个跑腿的，顺着药渣一路摸到了城外的黑铺。长老带人抄了铺子，丹方回来了一半。窃方的人被废了灵根逐谷。你那位旧交从此不再与你同桌吃饭。"},{"text":"把疑点禀给长老","effect":{"contribution":50,"mind":5,"rel":{"白芷":-8},"log":"上报丹方疑点"},"result":"你把看到的都说了，一句没添也没减。长老查了两月，最后只罚了那人三年月俸，丹方始终没找回来。白芷听说以后沉默了很久，说了一句，你做得没错。然后她再没跟你提过这件事。"},{"text":"装作不知，替旧交圆一次","effect":{"wealth":200,"contribution":-40,"mo":6,"mind":-6,"log":"替旧交遮掩"},"result":"对供时你把那天的时辰说错了半个。长老看了你一眼，没追问。半年后你账上多了两百块灵石，来源说不清。那张丹方后来在外头被人改得面目全非，害死了三个人，你听说时正在煮药。"}]},{"id":"d02_07","title":"抚琴悟道","weight":9,"once":true,"cond":{"sect":["天音阁"],"realmMin":1,"realmMax":3},"text":"子时的阁楼上风大，你独坐抚琴，弹的是入门第一支曲子。弹到第三遍，弦上忽然多出一道余音，低沉、稳当，有人在你背后把下半句接了下去，指法比你老练，还比你的软。你回头，廊下空无一人，只有一截吃剩的糖糕放在栏杆上，夜露已经把它泡软了，纸上还留着牙印。","choices":[{"text":"装作不知，继续弹完这一曲","effect":{"cult":80,"mind":6,"log":"夜弹一曲"},"result":"你没回头，把那支曲子弹到最后一声，余音在廊柱间绕了很久才散。天亮时栏杆上的糖糕不见了，多了一小包新买的，纸还热着。你把那包糖糕吃了，觉得这一夜的曲子比平时好听。"},{"text":"停手，循着余音找过去","effect":{"cult":50,"luck":5,"rel":{"苏婉儿":12},"log":"寻到廊下听曲之人"},"result":"你收了琴追下去，在转角堵到一个抱着食盒的小师妹。苏婉儿理直气壮地说，她只是路过，顺手听听，顺便吃个糕。她说完自己先绷不住笑了，把食盒塞给你，让你明天再弹一遍给她听。"},{"text":"故意弹错一个音","effect":{"mind":-4,"cult":30,"luck":8,"log":"错音试出真心"},"result":"你手腕一沉，把一个音弹得离了调。廊下的气息立刻乱了半拍，随即有人极快地替你补上了那个音，补得比你原本弹的还好。你回头时人已经走了。此后夜里，阁楼上再没出现过别人的声音。"}]},{"id":"d02_08","title":"音律比试","weight":10,"once":true,"cond":{"sect":["天音阁"],"realmMin":1,"realmMax":3},"text":"阁中音律比试分两场：先斗曲，后斗心。第一场对方弹的是《塞上雪》，杀气很重，几个外门弟子当场捂住了耳朵，有一个已经退了席，脸白得像纸。第二场考的是不被别人带走的定力，题目由长老临场出，连曲谱都没给，也不许问。台下顾长歌抱着手臂冲你比了个口型。","choices":[{"text":"照着谱子稳稳弹完两场","effect":{"cult":100,"contribution":70,"mind":6,"log":"音律比试稳过两场"},"result":"你两场都用同一手起势，不快不慢。第二场对手弹得翻江倒海，你始终没偏一个音。长老最后给了个中等的评语，说你没有一处破绽，也没有一处让人记住。顾长歌说这话翻译过来就是，你还得再来几年。"},{"text":"第二场顺着对方的曲子接下去","effect":{"cult":120,"fame":12,"mind":-5,"log":"接曲夺场"},"result":"第二场你忽然跟着对方弹了下去，两条旋律缠成一团，最后你的那一条压住了他。台下炸了，长老也抬了抬眉毛。散场后你耳鸣了三天，那三天里连喝水都听见曲子。从那以后，没人再敢在你面前随便起势。"},{"text":"第二场故意认输，避其锋芒","effect":{"contribution":20,"mind":8,"wealth":40,"log":"让出一场"},"result":"你第二场收了手，抱琴认输。对方怔了一下，下台后塞给你四十块灵石，说是谢你昨晚上替他母亲带了药。这事你早忘了。你少了一个名次，多了一个此后在阁里替你说话的人。"}]},{"id":"d02_09","title":"以曲疗心","weight":8,"once":true,"cond":{"sect":["天音阁"],"realmMin":1,"realmMax":3},"text":"一位外门师兄在幻境里伤了心神，醒来后整日不肯说话，谁靠近就让谁出去，已经三天没进食，房门缝里积了一层灰。阁中长老把这差事交给你，理由是你修为浅，伤不到他。你抱着琴坐在门外，隔着一扇门弹了三天，第四天门里有了脚步声，停在了门后，没开门，也没走。","choices":[{"text":"弹他入门时学的第一支曲","effect":{"contribution":80,"mind":10,"fame":6,"log":"以旧曲开解师兄"},"result":"你换了他入门那年的第一支曲，弹得慢，几处还错。门里静了很久，然后传来粗重的呼吸声。第五天他自己开了门，眼睛肿着，说了一句，这曲子我娘也会。此后他重新拿起了琴。"},{"text":"把幻境的事摊开说","effect":{"contribution":60,"cult":40,"rel":{"苏婉儿":-10},"luck":-4,"log":"直言幻境之事"},"result":"你推门进去，把他在幻境里看见的东西一件件说了出来，一句没绕。他先是发抖，然后哭得像个孩子。他好了，苏婉儿却为此生了很久的气，说你哪是疗心，你是在他伤口上又划了一遍。"},{"text":"先去找长老问清来龙去脉","effect":{"contribution":40,"mind":5,"rel":{"苏婉儿":8},"log":"先问清再疗心"},"result":"你花了两天把那位师兄的旧事问清楚，连他家中还有谁都记下了。再去的时候你没带琴，只是坐着陪他吃了几顿饭。他慢慢开始说话。苏婉儿说你总算像个天音阁的弟子，那天她把自己那份点心分了你一半。"}]},{"id":"d02_10","title":"血池淬体","weight":10,"once":true,"cond":{"sect":["万魔殿"],"realmMin":1,"realmMax":3},"text":"殿中血池开了三日，池边排着新入门的弟子，轮到谁谁下去，没人敢往后缩。池子里的血是各宗战死者的，泡一个时辰能顶三年苦修，泡不好的会疯，上个季度就有两个被人抬去了后山。管池的老修士眼皮都不抬，只问你一句，下去还是站着。姜雪璃靠在池边的栏上看着你。","choices":[{"text":"泡满两个时辰","effect":{"cult":260,"mo":12,"mind":-8,"log":"血池泡足两时辰"},"result":"你下去时水是温的，半个时辰后开始烫，一个时辰后你听见很多人在你耳朵里说话。两个时辰到了，你从池里爬出来，浑身像换了一层皮。姜雪璃隔着水汽看了你很久，说了句，你还站着，算你有点意思。"},{"text":"只泡一个时辰","effect":{"cult":130,"mo":5,"log":"血池泡一时辰"},"result":"一个时辰到点你就上来了，岸上几个弟子嗤笑了一声。你没理会，回去把衣服上的血渍洗了三遍。后来殿里比试，几个泡满两个时辰的人当场发了狂，被拖下去了。你从旁边走过去，什么也没说。"},{"text":"不下池，替管池修士当值一夜","effect":{"contribution":60,"mind":8,"luck":5,"log":"守夜不下血池"},"result":"你替老修士守了一夜池子，记下每一个下池的人何时上岸、几时发抖。天亮时老修士难得看了你一眼，说这次入门的二十七个，只有你没想死。他给了你一枚避血的丹，你自己收着吧。"}]},{"id":"d02_11","title":"同门相残","weight":9,"once":true,"cond":{"sect":["万魔殿"],"realmMin":1,"realmMax":3},"text":"秘境里同时进来七个人，出口只认三枚令牌，认牌不认人，牌在谁手里谁就能出去。你追着第三枚令牌跑到洞窟深处，听见有人压着嗓子求救。那是同批入门的一个女弟子，腿被落石压住了，手里正攥着另一枚令牌。她没有喊你的名字，只先把手里的东西往石缝里又藏了藏。","choices":[{"text":"搬开石头，把她带出去","effect":{"fame":8,"cult":40,"mind":6,"mo":-4,"rel":{"姜雪璃":10},"log":"救出被压同门"},"result":"你搬了半个时辰，指甲全翻了。她出来后什么也没说，把藏起来的那枚令牌直接塞给你，一瘸一拐往反方向走，去给另外五人引路。最后七个人出来四个。姜雪璃在出口站着，看见你满手的血，笑了一下。"},{"text":"取令牌先走，留她自生自灭","effect":{"cult":150,"wealth":120,"mo":10,"mind":-10,"log":"取令牌弃同门"},"result":"你摸走了那枚令牌，头也没回。出口开启时你排在第二个。三个月后殿中传开，那女弟子死在落石下，尸体是半年后清秘境的人带出来的。你手里那枚令牌如今还挂在腰间，谁看见都当没看见。"},{"text":"退回去，另找出口","effect":{"cult":60,"mind":5,"luck":-5,"log":"弃令牌另寻出路"},"result":"你把那枚令牌推回石缝，转身往深处走。你在洞底绕了两天，最后从一道裂开的地缝里爬了出来，浑身是伤，什么也没拿到。姜雪璃听说了，只说了三个字，笨得可以。她说这话时手里正在给你留一份口粮。"}]},{"id":"d02_12","title":"魔功反噬","weight":8,"once":true,"cond":{"sect":["万魔殿"],"realmMin":1,"realmMax":3},"text":"你修的那门功法第九层开始反噬，夜里静坐时经脉里有东西在爬，走的是逆路，一路往心口去，越靠近越慢。照这个势头，再过十五日就要撞上心脉。殿里的规矩是反噬者自行处置，处置不了的就送去后山。罗睺前几日路过你身边，停了一息，看了你一眼，什么也没说就走了。","choices":[{"text":"散功，从头再练一门","effect":{"cult":-120,"mind":12,"mo":-8,"lifespan":20,"log":"散去魔功重修"},"result":"你花了七日把九层功力一层层散掉，散到最后咳出一口黑血，人却轻了。你改修一门极慢的养气法，进境慢得像爬。半年后同批的人已经超过你两个小境界，但你的夜里终于安静了。"},{"text":"顺其反噬，把痛苦压成修为","effect":{"cult":220,"mo":15,"mind":-12,"log":"硬压反噬"},"result":"你不再抵抗，让那股逆行之气撞进丹田，疼得咬穿了嘴唇。天亮时你修为暴涨，出手比原先狠了三成。只是从此每逢月圆，你右手会不受控制地抽一下。姜雪璃注意到了，什么都没问，只在你桌边放了一瓶安神的药。"},{"text":"去求罗睺指点一句","effect":{"cult":80,"mo":8,"rel":{"罗睺":10},"log":"求罗睺指点","death":"魔道大能的随手一试，断送了你的性命"},"result":"你在殿外跪了一夜，罗睺终于出来，抬手按在你天灵盖上试了试，说这功法他自己也修过，修到第九层就换了人。他收回手时你眼前一黑。你的经脉没能撑住那一下轻描淡写的试探。"},{"text":"硬撑，谁也不告诉","effect":{"cult":60,"mind":-6,"mo":6,"log":"独撑反噬"},"result":"你把这事压在心底，白天照常出入，夜里咬着布巾挨过去。撑了四十多天，反噬自己退了下去，修为却像被凿掉一层。你在镜子里看见自己瘦了，眼下发青。这件事你到现在也没跟任何人说过。"}]},{"id":"d02_13","title":"坊市接活","weight":10,"once":true,"cond":{"sect":["散修联盟"],"realmMin":1,"realmMax":3},"text":"联盟的木牌上挂着一排活计：替人清渠、押一趟货、去北坡除三头妖狼。管事的说，清渠给二十块灵石，押货给八十，除狼给一百五，钱数写在牌上，命数写在牌后，两样都摆着，自己挑。旁边一个老散修啃着干饼，提醒你第一次接活别看钱最多的那一栏，他左手的指头少了三根。","choices":[{"text":"接押货，稳当走一趟","effect":{"wealth":80,"cult":40,"luck":4,"log":"押货一趟"},"result":"货是三十箱药材，路上遇了一伙劫道的，你和同行的四个人把箱子围成一圈站了一夜，没打起来。到地方后雇主多给了十块灵石，说你们这趟没掉一片叶子。你把钱缝进衣角，回联盟交了牌。"},{"text":"接除狼，赌一把大的","effect":{"wealth":150,"cult":90,"lifespan":-10,"log":"北坡除狼三头"},"result":"北坡的狼是开了灵智的，你追了两天两夜，杀了两头，第三头咬穿了你的左臂。你把它按在雪里结果了它。一百五十块灵石到手，箭头在骨头上留了疤。此后阴雨天你的左臂会先知道。"},{"text":"接清渠，顺便看看城里的门路","effect":{"wealth":20,"fame":3,"luck":8,"log":"清渠赚人情"},"result":"你清了六里水渠，认识了沿渠十几户人家和一个管水的修士。活钱少，可此后半年你在城里走动，总有人肯给你递个消息。老散修说这就对了，散修靠的不是灵石，是有人肯在你出事时多说一句话。"}]},{"id":"d02_14","title":"黑市交易","weight":9,"once":true,"cond":{"sect":["散修联盟"],"realmMin":1,"realmMax":3},"text":"黑市在地下的旧仓里，进门前要交一把下品灵石，出来时谁也不记得谁，连脸都记不清。有人摆出一枚玉简，说里头是某宗的内门功法，价钱不高，只要求买主自己掂量来路。你翻开一缕神识扫过去，功法是真的，玉简边上有一道新鲜的缺口，像刚从整卷上掰下来的，断口还很利。","choices":[{"text":"买下，回去抄一遍就烧掉","effect":{"cult":160,"wealth":-120,"mo":8,"mind":-5,"log":"黑市买下残缺功法"},"result":"你付了钱，回去抄了两夜，把玉简砸碎丢进了河里。功法确实能修，前三层进境极快。可你抄到第四层时发现后面断得干净，而前四层的路子，分明是给某一家弟子量身定的。"},{"text":"不买，只把卖家记下来","effect":{"fame":5,"contribution":50,"mind":5,"log":"记下黑市卖家"},"result":"你什么都没买，退到角落把卖家的身形、口音、手上的疤记了个全，出来就把话递给了联盟的执事。三个月后那处旧仓被抄了。你没得过一个钱，但联盟里从此有几个老散修肯叫你一声师弟。"},{"text":"把玉简买下再交还失主","effect":{"wealth":-120,"fame":12,"mind":8,"log":"买回玉简归还原主"},"result":"你买下玉简，照着那道缺口找了两个月，终于摸到青云剑宗的外门。接东西的管事弟子不肯认，你却看见他手指在抖。三天后有人往你住的客栈送了三百块灵石，没有留名，钱数比你花的多了一倍半。"}]},{"id":"d02_15","title":"雇主赖账","weight":9,"once":true,"cond":{"sect":["散修联盟"],"realmMin":1,"realmMax":3},"text":"你替一位药商守了四十天的库房，说好一百二十块灵石，结账那天他翻脸说从来只讲八十，还叫了四个护卫站在门口，把账本按在桌上。联盟的规矩写得清楚：散修与雇主争执，联盟不介入，双方自行了断。老散修听你说完，把饼渣掸掉，说这种事一年总有七八回，各人有各人的解法。","choices":[{"text":"堵着门讨，一分不让","effect":{"wealth":120,"fame":8,"lifespan":-5,"mo":5,"log":"讨回全部灵石"},"result":"你在库房门口站了三天三夜，四个护卫轮流上来推你。最后一天你咳着血把契书拍到柜台上，药商脸色变了，把钱数全了。你拿了钱走人，背上挨的那两下，到冬天还在隐隐作痛。"},{"text":"请联盟执事出面做个中人","effect":{"wealth":90,"contribution":30,"fame":4,"log":"请中人了结"},"result":"执事来了，两边各退一步，你拿到九十块。药商此后在城里的名声坏了半截，执事却记住了你这个人。他说下回接活先来跟他打声招呼，联盟不保钱，保人还是能保一保的。"},{"text":"认下八十块，换他往后三年的活","effect":{"wealth":80,"luck":-4,"mind":-6,"log":"认亏换长久活计"},"result":"你收了八十块，还笑着跟他握了手，说往后有活尽管找你。此后三年你确实一直有活干，也一直是这个价。第四年他换了更便宜的人。你把那四十块灵石，当成学费记在了心里。"}]},{"id":"d02_16","title":"情丝难解","weight":9,"once":true,"cond":{"sect":["合欢宗"],"realmMin":1,"realmMax":3},"text":"宗里的功课有一门叫观心，要你把自己心里最放不下的那个人写在纸上，然后当众烧了。同批的弟子写完一个烧一个，有人烧完哭了，有人烧完笑了。你提笔的时候停住了，纸上空白很久，墨滴下来晕成一个圆。掌事师姐说，写不出的可以先放着，但放着的人，往后十年都过不了观心这一关。","choices":[{"text":"写下名字，当众烧掉","effect":{"mind":12,"cult":90,"mo":-5,"log":"观心烧纸"},"result":"你把那个名字写上去，看它卷成黑边，化成灰。你没有哭，也没有看任何人的脸。掌事师姐说，你烧的是纸，不是人，能分清这一点就算过了。这一夜你的心境第一次稳得像一潭水。"},{"text":"交一张空白的上去","effect":{"mind":-8,"cult":60,"mo":8,"log":"空纸过观心"},"result":"你把空白的纸投进火里，说没什么可写的。掌事师姐看了你很久，让你出去了。此后每次夜里打坐，你总会听见纸被点燃时的响。那门功法你练得比谁都快，也比谁都冷。"},{"text":"留在宗里，不走这条道","effect":{"contribution":40,"mind":6,"fame":-5,"log":"不写名字留下"},"result":"你把笔搁下，跟掌事师姐说这门功课你暂时不做。她没罚你，只把你从观心的名册上挪到末尾。宗里有人说你怂，也有人在夜里来找你坐一会儿，什么也不说，坐够了就走。"}]},{"id":"d02_17","title":"幻境试心","weight":9,"once":true,"cond":{"sect":["合欢宗"],"realmMin":1,"realmMax":3},"text":"入门三年要过一次心幻阵，阵中会把你最想要的东西摆在你面前，摆在最近的、最顺手的地方。执阵的长老说，阵里过一夜，外面只过一炷香，撑不住的自己会喊停。你在阵中看见一间屋、一炉火、一个回头看你的人，桌上还温着饭，筷子摆了两双。你只要走过去坐下，这一关就算过了。","choices":[{"text":"走过去，坐下，把它过完","effect":{"mind":10,"cult":100,"luck":-5,"log":"心幻阵中安坐"},"result":"你走过去坐下，把那一顿饭慢慢吃完。饭是热的，话是软的，你几乎信了。香烧尽时屋子散了，你站在原地，手里什么也没有。出来后你在阵外坐了很久，觉得心里空了一块，也轻了一块。"},{"text":"认出是假的，当场打碎","effect":{"mind":-6,"cult":140,"fame":8,"mo":8,"log":"破幻而出"},"result":"你抬手把桌子掀了，屋子和人一起碎成光点。你比同批的人早出阵两个时辰，长老夸你心志坚定。此后你再进幻境，什么都骗不过你，可你也再没在幻境里吃上一口热饭。"},{"text":"不动，站到香烧完","effect":{"mind":6,"cult":60,"contribution":30,"log":"立于幻境不动"},"result":"你没过去，也没出手，就站在门边看着那间屋子，看着那炉火一点点灭。香烧完时你连眼都没眨。长老说你这一关过得最像样，既没被骗，也没把心砸坏。宗里给了你三十点贡献。"}]},{"id":"d02_18","title":"双修合道","weight":8,"once":true,"cond":{"sect":["合欢宗"],"realmMin":1,"realmMax":3},"text":"宗中讲合道，讲究的是两个人把修行铺开在同一张图上，谁快谁慢都拖得住对方，谁也不许先松手。执事长老问你愿不愿意与一位同门结伴而修，把往后数年的进境联通，契书上要按两个人的手印。那位同门你认得，话不多，做事极稳，此刻就站在长老身侧，见你时先把选择权让给了你。","choices":[{"text":"答应结伴，各修各的道","effect":{"cult":120,"contribution":50,"mind":8,"rel":{"顾长歌":8},"log":"与人结伴合道"},"result":"你们立了契，约好不动情、不越界，只把修为铺在同一张图上。此后三年你进境快了一倍，他遇到瓶颈时你也拉过他一把。契满那天你们在宗门口各自散去，谁都没多说一句。"},{"text":"答应，把契立成终身的那种","effect":{"cult":180,"mind":6,"fame":8,"partner":"同门道友","log":"立终身合道之契"},"result":"你在契书上按了手印，把这一生和另一个人的修行绑在一处。宗里摆了三日流水席，来的人比你想的多。此后你的道途不再是一个人走的，遇上瓶颈时有人比你还急。这很好，也确实比从前重。"},{"text":"婉拒，只做同门","effect":{"mind":5,"contribution":-20,"log":"婉拒合道之约"},"result":"你把话说得很轻，也说得清楚，说不愿意拿别人的道途替自己垫脚。那位同门听完点了点头，说他也这么想过。此后你们还是同门，见面依旧行礼，只是那三年你的进境比旁人慢了一截。"}]},{"id":"d02_19","title":"宗门大比","weight":11,"once":false,"cond":{"realmMin":1,"realmMax":3},"text":"五年一次的宗门大比，六宗都派人来观礼，演武场外搭了三层看台，连山门口都站了人。第一场抽到你，对手修为比你高一个小境界，台下坐满了人，本宗的长老在后排，你的名字被喊出来时响了两声。顾长歌在候场处低声说，这种场子赢一场，抵半年苦修，输一场抵三年抬不起头。","choices":[{"text":"先藏招，后发制人","effect":{"cult":90,"contribution":60,"fame":8,"mind":4,"log":"大比藏招取胜"},"result":"你前二十招只守不攻，把对方的节奏全摸清了才还手。翻盘那一下台下静了半息，然后炸开。本宗长老在人群后点了点头。你下场时手还在抖，顾长歌递水给你，说这一手藏得够阴，他喜欢。"},{"text":"开场就压上去","effect":{"cult":60,"fame":14,"lifespan":-8,"log":"大比硬碰一场"},"result":"你开场就把压箱底的东西全砸出去，打了对方一个措手不及，也在第三十招上被抓住破绽。你输半招，肋骨断了一根，可台下记住了你。有人打听你的名字，也有人打听你师承。"},{"text":"查清对手底细再上台","effect":{"cult":110,"contribution":40,"wealth":-40,"luck":5,"log":"查清对手再上台"},"result":"你花四十块灵石买了对手近三年的比试记录，一夜没睡，把他起手的三个习惯背了下来。上台时你每一步都踩在他前面。赢得不漂亮，但很干净。对方下场时看了你一眼，什么也没说。"}]},{"id":"d02_20","title":"内门晋升","weight":10,"once":true,"cond":{"realmMin":1,"realmMax":3},"text":"内门弟子有定额，今年空了三个位子，报了名的有十一个，名册就贴在执事堂的墙上。考的是过一线崖，崖上架着一座旧索桥，桥面早就烂没了，只剩一根绳子。过了桥还要在崖顶打坐一炷香，中途落地就算不过。桥那头已经站了两个考核的长老，谁掉下去他们也不会伸手。","choices":[{"text":"第一个上桥去","effect":{"cult":130,"contribution":80,"fame":10,"lifespan":-6,"log":"首位过索桥晋升"},"result":"你第一个踩上绳子，走到中段时绳索磨破了掌心，血顺着手腕滴下去。你没停，过去后直接坐在崖顶打了一炷香。三个位子里有你一个。后来别人提起这年晋升，都说第一个上去的那个人。"},{"text":"让同门先走，稳住后面","effect":{"contribution":70,"mind":8,"rel":{"顾长歌":12},"log":"殿后过桥"},"result":"你退到队伍末尾，把绳子那一头在石头上多绕了两圈。前面的人过去七个，掉下去两个，都被你在桥下接住了。考核的长老最后也把你算过了。顾长歌拍着你的背说，你这叫笨人有笨福。"},{"text":"先把绳索加固再上","effect":{"cult":70,"contribution":90,"fame":6,"log":"加固索桥过崖"},"result":"你花了半个时辰在桥头打了个结，多了两道活扣，掉下去的人也摔不着。十一个人过去十个。长老看着那个结，问你跟谁学的。你说跟你娘学的，她从前在山里采药。他听完没再问。"},{"text":"绕后山小道自己上去","effect":{"cult":50,"fame":-8,"mind":-5,"log":"绕道登崖"},"result":"你从后山绕了两个时辰，从崖背爬上去，赶在香烧完前坐进了打坐的位置。考核的长老看了你一眼，把你的名字划掉了。他说规矩不难为笨人，只难为想省事的人。你从那道崖走回住处，走了整整一夜。"}]},{"id":"d02_21","title":"藏经阁值夜","weight":10,"once":true,"cond":{"realmMin":1,"realmMax":3},"text":"藏经阁值夜是个没人愿意接的差事，一夜七个时辰不能合眼，烛火不许挪位置，连咳嗽都要记在册子上。第三层锁着三只铁匣，管阁的老修士交班时特意提了一句，说匣子上的封条是三百年前贴的，别去碰，也别去想。他走后，整座阁楼只剩下你、一盏烛火和楼上的封条。","choices":[{"text":"巡阁七次，一步不错","effect":{"contribution":70,"mind":8,"log":"值夜巡阁七次"},"result":"你七个时辰巡了七趟，把每一层的窗栓都推过一遍。天亮时老修士进来，看了一眼烛台的位置，又看了看你，说了句，你昨天晚饭吃的是什么。你答得上来。他就把钥匙多留了你一把。"},{"text":"撕开封条，看一页","effect":{"cult":200,"mo":10,"mind":-8,"contribution":-20,"flagAdd":["夜读禁书"],"log":"夜读禁书一页"},"result":"你撕开一角，抽出册子只看了一页，那上面的东西就钻进脑子里烧了起来。你原样贴回封条，可边角再也压不平。此后你的修行快得反常，老修士再没让你值过夜，也没问过你什么。"},{"text":"抄下借出去的书册名录","effect":{"fame":6,"wealth":100,"contribution":30,"log":"抄录借书名录"},"result":"你没动铁匣，先把三层书架上每册书借出与归还的记号抄了一份。半年后有人拿着你的单子找出了三个私改借期的内门弟子。你把单子卖了两次，一次给管阁，一次给那几个弟子的对头。"}]},{"id":"d02_22","title":"灵石矿出事","weight":10,"once":false,"cond":{"realmMin":1,"realmMax":3},"text":"宗门辖下的灵石矿在西岭，午时地动了一刻，主巷道塌了整整三里，下面还有三十七个矿工，多数是凡人。矿头跪在洞口喊你，说下面的塌方还在继续，每喊一声，洞口的土就落一层。与此同时，有人从侧道跑出来，怀里抱着刚挖出的一袋上品灵石，从你身边过去时连头都没回。","choices":[{"text":"组织人手，先救人","effect":{"cult":60,"fame":15,"contribution":80,"wealth":-80,"mind":8,"log":"矿难中救出十九人"},"result":"你把身上所有灵石拿出来雇了二十个散修，按矿头画的旧图挖了三天。塌方又落了两回，最后一次把你埋到腰。最后救出十九个人。宗门补给你的钱不够填雇人的费用，可那些矿工记住了你的名字。"},{"text":"先封侧道，等宗门定夺","effect":{"contribution":60,"fame":-6,"mind":-6,"log":"封矿待命"},"result":"你封了矿口，写了加急文书。等宗门的执事带人赶到，已经是第五天，下面的声音早就没了。宗门赏了你六十点贡献，说你处置稳妥。你拿着那份赏，觉得手里沉得不像是自己的东西。"},{"text":"趁乱下侧道去抢富矿","effect":{"wealth":300,"contribution":-50,"mo":10,"mind":-8,"log":"矿难中抢矿"},"result":"你顺着侧道下去，从塌方压出来的富矿脉上搬了三袋上品灵石，一路无人拦你。这笔钱够你花三年。此后你再路过西岭，会绕很远。那三十七个矿工里，活下来十一个。"},{"text":"从侧道口自己撤出去","effect":{"fame":-10,"mind":-8,"lifespan":10,"log":"撤离矿难现场","death":"你在侧道口被第二次塌方埋住了"},"result":"你转身往侧道口走，脚底忽然一沉，整面洞壁在你身后塌了下来。你没能跑出去。等有人清到这一段时，只找到半截袖子，和那块亮得很奇怪的灵石。"}]},{"id":"d02_23","title":"长老收徒","weight":9,"once":true,"cond":{"realmMin":1,"realmMax":3},"text":"一位在山上住了很多年的老修士忽然要收徒，消息半夜就传遍了各峰，天没亮听风亭外已经排了二十多个人，有人带着礼盒，有人带着剑。他坐在亭里，谁也不看，面前的茶凉了也不换，只说一句，他挑人不看修为，看一件事。他问你，三日后午时，你肯不肯来听风亭等一个不会来的人。","choices":[{"text":"三日午时，准时赴约","effect":{"cult":120,"mind":10,"luck":8,"contribution":40,"log":"听风亭守约三日"},"result":"你三日后准时到了听风亭，坐到日落。那位不会来的人确实没来。老修士下午走进亭子，在你对面坐下，倒了两杯茶。他说他等的不是那个人，是肯来的人。他成了你的师尊，第一句话是让你别学他那身邋遢。"},{"text":"闭关三日，不赴约","effect":{"cult":140,"mind":-6,"fame":-5,"log":"闭关未赴听风之约"},"result":"你把自己关了三日，修为进了一层。出关时听人说老修士收了另一个弟子，就是那个在亭外站到最后一刻的人。你去看过一次，那师徒两个正在亭子里下棋。你站在远处看了一会儿，回去继续闭关。"},{"text":"当日去，把话问清楚再决定","effect":{"mind":6,"cult":60,"luck":5,"log":"问清缘由再拜师"},"result":"你去了，先问他为什么非得等一个不来的人。老修士笑了一声，说他年轻时错过一次，此后就不信空口的约定。他没收你，但给了你一本自己批注过的册子。那册子你翻了十年，翻烂了两遍。"}]},{"id":"d02_24","title":"师尊闭关","weight":9,"once":true,"cond":{"realmMin":2,"realmMax":3,"flagNone":["师尊闭关"]},"text":"掌门当众宣布，师尊将闭关三年，不问外事，连峰上的传音符都封了。散场后管事的把你叫住，说师尊留下的东西不少：一峰的事务、两处产业、还有七封没写完的信，封口都封了一半，信封上一律没写名。信是寄给谁的你不知道。这三年的日子怎么过，得你自己拿主意。","choices":[{"text":"守在峰上，代管这三年的事务","effect":{"contribution":120,"fame":8,"cult":50,"age":3,"flagAdd":["师尊闭关"],"log":"代管一峰三年"},"result":"你接了名册和账本，三年里没出过一次峰门。峰上的事比你想象的琐碎，冬天漏雨的屋脊、秋天不够分的丹药、还有两个总在吵架的师弟。师尊出关那天看了账本，说了句，比他自己管得好。"},{"text":"把事务交出去，自己在崖上苦修","effect":{"cult":200,"contribution":-20,"mind":6,"age":3,"flagAdd":["师尊闭关"],"log":"闭关崖上三年"},"result":"你把名册原样交还管事，搬去剑崖下的小屋。三年里除了送饭的弟子，你不见任何人。出关时你的修为越了两个小境界，峰上的弟子有一半已经不认得你。师尊听说后只说了两个字，也好。"},{"text":"下山游历寻信之主","effect":{"fame":15,"wealth":100,"cult":80,"luck":8,"age":3,"flagAdd":["师尊闭关"],"log":"下山寻信之主"},"result":"你带着那七封信下了山，三年走了四个州，找到其中三个人。有一个已经死了，有一个不肯认，还有一个抱着信哭了半个时辰。回峰时你只剩最后一封没送出去。师尊看着你手里的信，很久没说话。"}]},{"id":"d02_25","title":"同门陷害","weight":10,"once":false,"cond":{"realmMin":1,"realmMax":3},"text":"库房丢了一瓶筑基丹，执事长老查到最后一环，指到了你头上。指你的人是个平时跟你点头打招呼的内门弟子，他说前日夜里看见你在库房外站着，站了很久，还回头看了两次，走的时候袖子鼓着。你确实去过那里，是替同门送一份忘在丹房的药材。长老放下茶盏，问你还有什么话说。","choices":[{"text":"自己去找证据","effect":{"cult":50,"contribution":70,"fame":6,"wealth":-50,"log":"自证清白"},"result":"你花了五十块灵石，把库房前那条路上的三家铺子问了个遍，找到两个肯作证的伙计。第二次问话时你把人证摆在堂上。指你的那位弟子当场瘫坐下去。长老没罚你，也没赏你，只说下回少往库房跑。"},{"text":"当众反问他前日在哪里","effect":{"fame":10,"contribution":30,"mo":6,"rel":{"顾长歌":10},"log":"当众反击诬告者"},"result":"你当场问了他三个问题，问到第二个他的时辰就对不上了。堂上有人笑出了声。他被罚了三年月俸，你洗清了干系。散场后顾长歌说这一手够痛快，也够险，往后他会记着你。"},{"text":"认下罚，换他欠你一次","effect":{"contribution":-40,"fame":-6,"mind":-5,"wealth":200,"log":"认罚换人情"},"result":"你没争，认了四十点贡献的罚。三个月后那人半夜来找你，把两百块灵石放在桌上，说那瓶丹是他姐姐病重时偷的。此后他在宗门里一直替你说话。你始终没提那两百块灵石是怎么来的。"}]},{"id":"d02_26","title":"丹药分配","weight":10,"once":false,"cond":{"realmMin":1,"realmMax":3},"text":"这个月的丹药分下来了。你连着三个月领的都是最少的那一份，理由是你入宗晚、根基浅，可册子上的记录并不这么说。你上个月替宗门出的任务，比领得最多的那个人多了两倍。苏婉儿前几日受了点伤，在药圃那边咳了好几天，你路过时正看见她把药瓶往袖子里收，动作很快，看惯了。","choices":[{"text":"去找执事当面理论","effect":{"contribution":-20,"fame":8,"mind":-5,"rel":{"苏婉儿":12},"log":"为丹药当众理论"},"result":"你拿着三个月的任务册子站在执事堂前，一条条念了出来。执事脸色很难看，最后给你补了半份。这事传开以后，有人说你不懂规矩。苏婉儿把你补的那半份塞回来一半，说她一个人吃不完。"},{"text":"把丹药匀给需要的人","effect":{"mind":10,"fame":5,"rel":{"苏婉儿":18,"白芷":8},"wealth":-30,"log":"匀丹给受伤同门"},"result":"你把自己那份拆开，一半留给苏婉儿，一半托人送去药庐。你自己去坊市花了三十块灵石买了些下等的补气丹对付。那个月你进境慢得几乎停住，可药圃那边的咳嗽声，过了半个月就没有了。"},{"text":"不争，去多接任务攒贡献","effect":{"contribution":100,"cult":60,"lifespan":-5,"mind":6,"log":"多接任务自攒丹药"},"result":"你什么也没说，把空闲的时间全填进了任务。一个季度下来攒了足够的贡献，自己换回两瓶好丹。执事后来再分东西，会先看一眼你的册子。这个道理你花了三个月才明白：能自己挣的，不必等人给。"}]},{"id":"d02_27","title":"下山历练","weight":11,"once":false,"cond":{"realmMin":1,"realmMax":3},"text":"宗门下了一道历练令，要你们这一批弟子下山，各领一处差事，交差才算过这半年。城南闹妖，报酬丰厚，去的人多半要挂彩；城北查一桩失踪案，线索少，胜在安危；还有一条往东的官道，商队要人护送三个月，钱多但耗时间。管事的把三块木牌摊在你面前，让你挑一块。","choices":[{"text":"去城南接令除妖","effect":{"cult":200,"wealth":120,"fame":12,"lifespan":-12,"log":"城南除妖受伤"},"result":"妖是只成了气候的赤狸，你追了它五天，最后在一口枯井里堵住。它临死前咬掉了你半只耳朵。一百二十块灵石的报酬拿到手，你就着药躺了半个月。此后你听风辨位比从前准得多，这算意外之得。"},{"text":"去城北查失踪案","effect":{"cult":90,"fame":10,"mind":8,"wealth":40,"log":"城北查清失踪案"},"result":"失踪的六个人最后都指向同一口废井和一位收租的里正。你把案子交到官府，那六个人里活了两个。报酬不多，事情做得干净。回宗交差时长老翻了翻你的卷宗，说以后有这种差事还让你去。"},{"text":"护送商队三个月","effect":{"wealth":220,"cult":60,"contribution":40,"age":1,"log":"护送商队三月"},"result":"三个月你走了两千里官道，遇过两次劫道的，都是谈开了的。商队管事把你当自家人，临别时多结了两成钱。你回宗时季已经换了，山上的叶子落了一地。这两百二十块灵石解了你半年的窘迫。"}]},{"id":"d02_28","title":"宗门庆典","weight":10,"once":false,"cond":{"realmMin":1,"realmMax":3},"text":"掌门的寿辰到了，宗门摆了三天流水席，各峰都要出人出力，酒水单子提前半月就送到了你手上。执事在名册上给你留了三个去处：前场演武、后山当值、以及偏厅帮着招待来贺的客卿。名册旁边压着一行小字：前场出头最快，后山最清苦，偏厅最能见人，三条路都有人走过，也都没落着好。","choices":[{"text":"去前场演武出头","effect":{"fame":14,"contribution":60,"cult":60,"lifespan":-6,"log":"庆典演武出彩"},"result":"你在前场演了一套剑，最后收势时用力太猛，膝盖里的旧伤裂了。台下掌声不少，掌门也看了两眼。你在偏厅敷药敷了一晚上，第二天起来腿还在发软，但那两天来贺的客人里，有三个人记住了你的名字。"},{"text":"去后山当值守夜","effect":{"contribution":90,"cult":50,"mind":8,"luck":-3,"log":"庆典后山当值"},"result":"你在后山守了三天三夜，守着库房和柴房，听前场的鼓乐声一阵阵飘上来。第三夜你在库房外抓住了两个偷酒的杂役。执事说你这份差事办得利落，给你记了九十点贡献。你把酒还了回去，自己没喝。"},{"text":"去偏厅招待客卿","effect":{"fame":10,"wealth":-80,"contribution":40,"luck":6,"log":"庆典偏厅待客"},"result":"你在偏厅站了三天，记住了十七位客卿的姓氏和口味，还把贺礼单子按宗门理了一遍。有位老客卿走时点名要你送出门。为了递上那份像样的贺礼，你自己贴了八十块灵石。这份人情账，往后总要收的。"}]},{"id":"d03_01","title":"剑冢残鸣","weight":10,"once":true,"cond":{"realmMin":1,"realmMax":3},"text":"你在荒山深处跌进一道地缝。缝底不是石头，是剑。成千上万柄残剑插在赤色的土里，剑身锈迹斑斑，却仍在你走过时齐声低鸣，像有人隔着几百年的雾在喊你的名字。剑冢中央立着一块无字碑，碑前跪着一具枯骨，脊背笔直，双手还保持着握剑的姿势。你伸手一探，最外面那柄断剑忽然震开泥土，剑柄朝你转了过来。","choices":[{"text":"拾起那柄断剑","effect":{"cult":30,"mind":4,"wealth":60,"flagAdd":["剑冢残锋"],"log":"剑冢得残锋"},"result":"断剑入手的刹那，千万柄残剑同时静了。你听见一声叹息，不是从耳朵进来的。剑身里残着半式剑意，你照着比划，手臂被震得发麻，却记下了那一划的走向。碑前枯骨无声，你把断剑插回腰间。出地缝时，袖中多了几块锈铁，卖价倒不低。"},{"text":"在无字碑前磕三个头","effect":{"mind":8,"lifespan":5,"luck":3,"log":"剑冢叩碑"},"result":"你跪下，额头碰在土上，三下，不轻不重。第三下时，碑面浮出一行极淡的字，你只来得及记住“剑不为人所使”六个，字就散了。起身时你觉得心口那块地方稳了一点。枯骨的手指不知何时松了，掌心空空，什么也没留下。"},{"text":"先搜枯骨，再理残剑","effect":{"cult":40,"mo":3,"wealth":120,"log":"剑冢取骨"},"result":"枯骨怀里藏着一只旧布袋，袋口一松，掉出几枚灵石和半卷剑谱。你收下了。转身要走时，背后千万柄残剑忽然一齐嗡鸣，声浪从脊椎里穿过去，你在坡上呕了一口血，耳鸣了三天。那半卷剑谱确实是真的。"}]},{"id":"d03_02","title":"龙骨未凉","weight":9,"once":true,"cond":{"realmMin":2,"realmMax":4},"text":"秘境入口是一道裂开的山壁，壁上嵌着半截龙爪。越往里走，空气越干，脚下的沙是骨粉。谷底横着一条不知多少丈长的龙骨，肋骨像一座座桥拱，龙首早已不见，只有胸腔处还留着一团暗红的光，一明一暗，像还在跳。骨缝里爬满白藤，藤上结着指头大的果子，红得发亮。你听见那团光里传来极低的一声——不是吼，像是呼吸。","choices":[{"text":"摘骨缝里的白果","effect":{"cult":45,"lifespan":8,"luck":-2,"log":"龙骨秘境摘果"},"result":"果子入口先是腥的，随后化成一股滚烫的暖流从喉咙滑进丹田。你盘膝坐了半日，醒来时手脚都轻了。但那些白藤像是被谁叫醒，慢慢朝你这边卷。你退得快，只被刮掉半片袖子。果子共摘了七枚，还剩五枚揣在怀里。"},{"text":"把手按上那团暗红光","effect":{"cult":70,"mo":8,"mind":-4,"lifespan":-5,"log":"触龙心残焰"},"result":"光不烫，是活的。它顺着你的经脉往里钻，一路上把堵着的地方全烧开了。你疼得跪下去，又觉得痛快，修为硬生生涨了一大截。代价是此后每逢雨夜，你心口都会跟着某种节奏跳，比自己的心跳慢半拍。龙虽死，心未凉。"},{"text":"不碰任何东西，原路退出","effect":{"mind":6,"luck":4,"log":"全身出龙骨谷"},"result":"你数着自己的脚步往外走，一步没停。走到山壁那道裂口时，你回头看了一眼——那团光还在一明一暗，肋骨的白在暗处像一排没关严的门。你没带走什么，也没留下什么。三个月后你听说，同一处秘境进去了十一人，出来了四个。"}]},{"id":"d03_03","title":"雾里故人","weight":10,"once":true,"cond":{"realmMin":1,"realmMax":4},"text":"沼泽的雾是甜的。你走进去不到十步，回头已经看不见来路，连自己踩出的脚印都被雾填平了。雾里慢慢浮出人影——是你最想见的那个人，站在三步之外，衣裳干净，神色温和，连说话的语气都对。他说前面有路，跟我走。你脚下是软的，草根下面全是水。你清清楚楚地记得，这个人早就不在了。","choices":[{"text":"跟着他走","effect":{"mind":-6,"cult":20,"luck":-3,"mo":5,"log":"雾中随影"},"result":"你跟着那道人影走了很久，走到雾薄的地方，人影忽然散了。你站在一片实地的边缘，脚下半寸就是黑水。前面确实有路——一条极窄的硬土脊，人若一头撞进去早就陷了。你冷汗透背，却到底走到了对岸，只是心口空了一块，像被谁取走。"},{"text":"站在原地，闭眼数息","effect":{"mind":10,"luck":5,"flagAdd":["雾中定心"],"log":"雾中立定"},"result":"你闭上眼，只数自己的呼吸。人影在你耳边说了许多话，从恳求到责备，最后变成一种很轻的哭声。你数到第九十息，哭声断了，风起了，雾散了。沼泽在你脚下，草是草，水是水。你睁眼时天已经黑了，但路看得清清楚楚。"},{"text":"对着人影问一句话","effect":{"cult":35,"mind":3,"lifespan":-3,"log":"问影得答"},"result":"你问：你走的时候疼不疼。人影停住，很久没有说话，然后它笑了，说了一句你听不懂的话——那是你从未听过的古音，可你偏偏懂了。雾气顺着你的七窍灌进来，冲开一段淤塞的经脉。等你回过神，人已经不在，地上只剩一摊清水。"}]},{"id":"d03_04","title":"万宝楼争丹","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":5},"text":"万宝楼三层，灯是暖的，人是冷的。你手上的牌子是三十七号，坐在末席。台上正在拍的是一枚回春丹，成色极好，起价三百灵石。你身边隔两席的位置，一个青衫少年也在举牌——他是江晚舟，你在药庐见过，他身后站着一位咳嗽不止的老妇人。价已经抬到八百。你怀里只有九百灵石，是三年的家底。","choices":[{"text":"一路加价到底","effect":{"wealth":-900,"fame":6,"mo":4,"flagAdd":["夺丹"],"rel":{"江晚舟":-12},"log":"万宝楼夺丹"},"result":"你举到九百，全场安静。江晚舟看了你一眼，慢慢把牌子放下。丹到手了，装在一只白玉盒里，很轻。你出门时听见背后有人低声说，散修出手真狠。那位老妇人被扶着从你身边走过，没有看你。丹是好丹，你至今没用。"},{"text":"替他叫一次价，再收手","effect":{"wealth":-300,"fame":10,"luck":6,"rel":{"江晚舟":18},"flagAdd":["万宝楼让丹"],"log":"让丹与药庐"},"result":"你举牌叫到八百，然后在江晚舟跟上时收了手。他愣了一瞬，冲你极轻地点了下头。散场后他在门口等你，把一只小瓷瓶塞过来，说里面是三枚他自己炼的丹药，不值什么钱。瓶底刻着一个极小的“江”字。"},{"text":"不拍丹，转头去后堂","effect":{"wealth":-200,"cult":50,"luck":-2,"flagAdd":["万宝楼后堂"],"log":"万宝楼后堂"},"result":"你从侧门绕到后堂，那里堆着流拍的杂货。你用两百灵石买了一堆没人要的旧竹简，其中三卷是残缺的功法注疏。回程路上你翻了半宿，发现里面记着一门早该失传的引气法。至于那枚回春丹，据说是被人以一千二百灵石买走的。"}]},{"id":"d03_05","title":"雷池九道","weight":8,"once":true,"cond":{"realmMin":3,"realmMax":5},"text":"雷池在云上。一片方圆十里的石坪，坪上布满焦黑的坑，每个坑里都积着紫色的雷浆，慢慢地滚。坪中央立着一根铁柱，柱上缠满雷纹。守池的老修士说，跳下去，扛住九道雷，体魄能上一个台阶；扛不住，连骨头灰都留不下。他说完就闭上眼睛，再不看你一眼。天上的云开始压下来。","choices":[{"text":"跳进雷浆，硬扛九道","effect":{"death":"第九道天雷落下，雷池里再没浮起什么"},"result":"第一道雷落在肩上，你听见自己的骨头在响。第四道时你已经不知道疼是什么。第七道落下，护体真元碎成一片光屑。你抬头看天，云还在压，第九道已经在云里蓄着了。你想起老修士说的那句话，想收回脚，可脚已经不在石坪上了。"},{"text":"入雷浆，扛三道就退","effect":{"cult":90,"lifespan":-8,"mind":7,"fame":10,"flagAdd":["雷池淬体"],"log":"雷池淬体"},"result":"三道雷，你数得很清楚。第三道落下时你咬着牙往坑外爬，指甲抠进石缝，一寸一寸把自己拖了出来。你趴在坑边，浑身焦黑，喘得像风箱。老修士睁眼看你一眼，说了句还行。此后你抬手时，袖口会有一线极细的紫光。"},{"text":"只在坑边引雷气淬手","effect":{"cult":45,"lifespan":-2,"mind":4,"log":"雷池引气"},"result":"你只在最靠边的一个浅坑边坐下，把手探进雷气里。紫气顺着指尖上来，一层一层剥你的皮。你换了三次手，最后两只手掌都厚了一层，摸刀口也不觉得疼。老修士哼了一声，说这样练一百年也成不了气候，但也死不了人。"},{"text":"不炼体，问他守池几年","effect":{"cult":15,"mind":8,"luck":6,"fame":4,"log":"雷池问道"},"result":"你退回石阶上，给老修士行了个礼，问他守在这里多少年了。他愣了很久，说我记不清了，我只记得我不是第一个守池的。他指给你看不远处几座没有名字的石堆。你在那里坐到日落，什么也没练，下山时脚步却比来时稳。"}]},{"id":"d03_06","title":"洞府坐化","weight":11,"once":true,"cond":{"realmMin":1,"realmMax":2},"text":"你追一只山兔，追到一处断崖下，兔钻进石缝里不见了，你却发现石缝后面是间屋子。屋顶塌了一半，月光直直照进来，照在一个人身上。那人穿一身旧道袍，盘坐在蒲团上，早已坐化，皮肉干枯却姿势不散。他面前摆着一张矮几，几上有一盏没点完的灯、一本翻开的册子、一只盖着的粗瓷碗。灰尘厚得能写字。","choices":[{"text":"翻开那本册子","effect":{"cult":55,"mind":4,"flagAdd":["残册记名"],"log":"洞府得残册"},"result":"册子上是他每日的行功记录，字很老实，一笔一划，写到某一页忽然停了，最后一行的墨还没干透就被灰盖住。你照着上面的路子练了三日，气感比从前顺。合上册子时你看见封底内页写着三个字：别学我。"},{"text":"揭开那只粗瓷碗","effect":{"cult":20,"wealth":150,"luck":3,"log":"洞府启碗"},"result":"碗里扣着一枚温润的玉扣，成色古朴，旁边还有一小袋灵石。你对着枯坐的道人拜了三拜才敢拿。玉扣贴身收着，入夜便暖。你后来才知道那是压祟的东西，卖给识货的人能换半年用度，只是卖了之后你连着做了几夜噩梦。"},{"text":"先替他收殓，再动东西","effect":{"mind":12,"fame":8,"cult":25,"lifespan":3,"log":"葬坐化道人"},"result":"你在崖下挖了个坑，把他连蒲团一起抬进去，土填实了，又搬了块石头立在坟前。石头无字，你也刻不出什么。等你回屋，那盏灯自己亮了。你翻册子、揭碗，什么也没少。出洞时你觉得背上有人轻轻推了一把，回头看，只有月光。"}]},{"id":"d03_07","title":"兽潮围城","weight":9,"once":true,"cond":{"realmMin":1,"realmMax":5},"text":"天黑之前，望云城的钟响了七下。七下，是兽潮。城外的林子像开了锅，一层层黑影压过来，兽目在暗处亮成一片。城墙上站满了人，有宗门的，有散修，也有提着柴刀的老百姓。守城的执事在喊：会阵法的去东门，会疗伤的去城墙下，剩下的跟我守在垛口。你握着手里那点修为，忽然发现自己哪一类都不太算。","choices":[{"text":"上城墙，跟着守垛口","effect":{"cult":60,"fame":20,"wealth":80,"mind":5,"log":"兽潮守城"},"result":"你守了一夜。刀卷了，手臂酸得抬不起来，中间有半炷香你几乎分不清人和兽。天亮时潮退了，垛口下堆着兽尸。执事点名发赏，念到你的时候顿了一下，说散修也有硬骨头。你分到八十灵石和一块腰牌，牌上刻着望云两个字。"},{"text":"去城墙下救治伤者","effect":{"cult":20,"mind":8,"fame":12,"wealth":-50,"rel":{"白芷":15},"log":"兽潮行医"},"result":"你在城墙根下忙了一整夜，撕了半件衣裳做布条，把身上带的金创药全用完了。白芷也在，她蹲在你旁边，一声不吭地给人接骨，手指稳得吓人。天亮时她递给你一小包药粉，说下次别把好药浪费在外伤上。你笑了笑，没接。"},{"text":"趁乱出城，抄兽潮后路","effect":{"cult":90,"wealth":200,"luck":-4,"mo":6,"log":"兽潮抄后"},"result":"你从水门溜出去，摸到兽潮后方的林子里。那里堆着被咬死的灵兽和没来得及吞下的储物袋。你捡得很快，也很轻。回城时天已经亮了，守门的人只当你是援兵。城墙上的人在清点死伤，你没敢抬头看。"}]},{"id":"d03_08","title":"阵道迷宫","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":4},"text":"你踏进阵道迷宫的第一步就后悔了。脚下石砖上的纹路是活的，你走错一步，眼前就换一个出口——不是把你送出去，是换一个新的出口让你继续选。你已经数不清自己走了多久，水和干粮都见了底，鞋底磨得只剩一层布。墙上刻着一行旧字，笔画很深：欲出此阵者，先忘此阵。","choices":[{"text":"记住每一步，硬算出阵眼","effect":{"cult":70,"mind":10,"lifespan":-3,"flagAdd":["破阵眼"],"log":"硬破阵迷宫"},"result":"你盘膝坐下，把走过的每一条路在心里重排，排到第七遍时，那些纹路忽然连成了一幅图。阵眼在东角一块不起眼的砖下。你踩上去，四周响声大作，墙一层层退开。出阵时你头发白了几根，但你从此看任何阵图都比别人快。"},{"text":"闭上眼，一直往前走","effect":{"mind":12,"luck":8,"cult":30,"log":"盲行出阵"},"result":"你闭上眼，不看出口，只认脚下的石砖缝。撞了三次墙，磕破了额角，走到后来连方向也不管了。某个时刻你睁眼，发现自己站在阵外的荒地上，天正亮。身后什么也没有，只有一片普通的石滩。你说不清自己是怎么出来的。"},{"text":"砸墙，一路凿出去","effect":{"cult":45,"mo":5,"lifespan":-5,"fame":4,"log":"凿壁出阵"},"result":"你没有耐心，直接祭出法器对着墙猛砸。墙是软的，砸开的洞里又是一层墙。你砸了整整一天，砸到手抖，最后砸到了真石头——阵基被你生生砸穿。出来时你浑身是灰。这法子太笨，但很有用。"}]},{"id":"d03_09","title":"缝里见己","weight":7,"once":true,"cond":{"realmMin":4,"realmMax":5},"text":"山谷里的风停了。不是你听不见，是风本身不在这个时辰。你面前裂开一道细长的缝，缝里没有黑，也没有光，只有一条你走过的路。路上站着一个人，正在回头——那张脸你每天在铜镜里见。他比你现在老一些，也瘦一些，腰间挂着你还没有的那把剑。他看见你，也停住了。裂缝在慢慢合拢。","choices":[{"text":"跨进去，与他换一句话","effect":{"cult":120,"mind":12,"lifespan":-10,"flagAdd":["见过自己"],"log":"裂缝见己"},"result":"你跨进去，裂缝里没有上下。他开口，说的是你此刻正要说的那句话，于是你们同时闭了嘴。他把自己腰间的一枚旧符解下来塞给你，动作和你一模一样。裂缝合上时，你站在原来的山谷里，风重新吹起来。那枚符在你掌心，纹路已经旧了。"},{"text":"伸手抓住他，拽他出来","effect":{"death":"你留在了不属于自己的那个时辰里"},"result":"你抓住了他的手腕，那一瞬你想的是，我不能再少一个我。裂缝开始急收，他反手把你也往缝里带。两个人卡在一条越来越窄的缝里。最后你听见的是自己的声音，在很远的地方说了一句：放手。风停了，山谷里再没有人。"},{"text":"后退三步，记下他的样子","effect":{"mind":10,"luck":6,"cult":40,"lifespan":5,"log":"退避裂缝"},"result":"你退了。裂缝在你眼里一寸寸合上，他一直在看你，最后笑了一下——那个笑法你自己都不知道自己会。风回来的时候你站在原地，把看到的每一样东西都记在心里：他的剑、他的疤、他的步子。你知道路该怎么走了。"}]},{"id":"d03_10","title":"阴兵过境","weight":8,"once":true,"cond":{"realmMin":3,"realmMax":5},"text":"荒原上没有草，只有断戈和碎骨。夜里起了雾，雾里传来整齐的脚步声，像有很多人一起走，走的是同一个步子。你趴在一条干涸的壕沟里，看见一列列甲士从雾中走出，甲是破的，脸是空的，眼神直直向前。他们不说话，也不看你。队伍很长，长得看不到尾。听说阴兵过后，地上会留下东西。","choices":[{"text":"等阴兵过完，捡地上的东西","effect":{"wealth":220,"cult":40,"luck":-3,"mo":4,"log":"战场拾遗"},"result":"队伍走了整整一夜。天亮时你在他们踩过的地方捡到七枚锈蚀的箭头、半块将印、一柄还能出鞘的短刀。刀柄上缠的布早就糟了，却在你握住时紧了一下。你把东西收好，走出荒原时回头看了一眼，雾还在那里，脚步声也还在那里。"},{"text":"混进队伍里，跟着走","effect":{"cult":100,"mind":-8,"mo":10,"lifespan":-8,"flagAdd":["随阴兵行"],"log":"随阴兵行"},"result":"你站起来，走进队列，学他们的步子。走了二十步，你发现自己的呼吸慢了下来，心口的跳声越来越远。走到某个地方，前面的人忽然齐齐转头看你。你猛地惊醒，从壕沟里爬出来，天还黑着。你的靴底磨穿了，修为却涨得吓人。"},{"text":"放一道灵光，惊散阴兵","effect":{"fame":15,"cult":30,"mind":8,"luck":4,"mo":-5,"log":"战场驱阴兵"},"result":"你冲天打出一道灵光，光炸开的一瞬，整列甲士化作灰雾散了个干净。荒原上第一次安静下来。你站在原地喘气，忽然听见很远的地方有个声音说：多谢。第二天有商队路过，说这一带的阴兵几十年没散过，昨夜居然散了。他们给荒原东头的无名坟上了香。"}]},{"id":"d03_11","title":"药园傀儡","weight":10,"once":true,"cond":{"realmMin":1,"realmMax":3},"text":"药园的篱笆是用铁线藤编的，还能看出当年有人精心打理。园里药草成了野的，长得比人高，药香浓得发苦。你翻过篱笆，脚下踩到一根细绳——园子深处传来一声极钝的响，像石头挪了地方。一个丈许高的石傀儡从药畦尽头站起来，胸口嵌着半块裂开的玉。它没有立刻动手，只是挡在你和一株开七色花的药草之间。","choices":[{"text":"绕过它，抢摘那株七色花","effect":{"cult":60,"lifespan":10,"luck":-2,"fame":3,"log":"夺园中药"},"result":"你使了个轻身法，从石傀儡腋下钻过去，一把攥住花茎。花离土的瞬间，整座园子响了起来。石傀儡的手掌落在你后背上，你被打飞出去三丈，肋骨断了两根，花却死死攥在手里。你在园外躺了半天才爬起来，花根还带着土。后来你把它种活了。"},{"text":"先毁它胸口的碎玉","effect":{"cult":45,"wealth":300,"mo":5,"log":"碎傀儡玉"},"result":"你看出那半块玉是它的机关所在。缠斗两刻，你找准空隙一击敲碎。石傀儡停在半空的手忽然垂下，慢慢跪倒在药畦里，不再动了。你从它胸腔里掏出剩下的零星灵石和一块旧玉牌，牌上刻着一个药园的名字。园里那些药，从此随你采。"},{"text":"退出去，替它把篱笆扶好","effect":{"mind":15,"luck":8,"cult":20,"fame":5,"flagAdd":["药园旧识"],"log":"修葺药园"},"result":"你退到篱笆外，蹲下身把被自己踩歪的铁线藤一根根重新缠好。石傀儡站在原地看你，看了很久，胸口的玉光慢慢暗下去。你转身要走时，它弯腰从畦里拔了一株不起眼的小草，放在篱笆桩上。那草寻常，但能解十七种毒。"}]},{"id":"d03_12","title":"秘境夺珠","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":5},"text":"秘境深处的地宫里，石台上悬着一枚珠子，珠子里有星河流转，一呼一吸都在变。台前已经打了很久。三个人围着一具尸体站着，都带着伤。最年轻的那个腿断了，靠着石台喘气；中间那个手上有血，眼神一直往珠子上飘；最年长的靠着墙，没吭声。珠子还没认主。谁都知道它认第一个碰它的人。","choices":[{"text":"直接出手抢珠","effect":{"cult":130,"fame":12,"mo":8,"luck":-6,"flagAdd":["夺珠"],"log":"秘境夺珠"},"result":"你先动了。年长那个比你更快，两人在台前换了一记，你肩膀被撕开一道口子。你借着这一撞抓住了珠子，转身就走。珠子在掌心烫得像炭，地宫的门在你身后塌了。你出去了，那三个人没有。"},{"text":"把珠子让给断腿的人","effect":{"mind":15,"fame":20,"luck":10,"cult":30,"log":"让珠与伤者"},"result":"你走到石台前，把珠子拿起来，然后递给了靠着台子喘气的那个年轻人。他愣住了。另两人看着你，手上的血还在滴。你退开两步，说，我守门，你们谁有本事谁拿。最后那年轻人抱着珠子活了下来，许多年后他找到了你。"},{"text":"先替死者收殓，再谈分珠","effect":{"fame":10,"mind":10,"luck":5,"wealth":-30,"cult":20,"log":"地宫收尸"},"result":"你蹲下把死者睁着的眼合上，翻出他腰间的名籍，卷好收进袖子。另三个人被你这动作弄得僵了一会儿，手上的劲都松了。珠子最后被中间那个拿走了，年长那个没争。你把名籍送回了原主所在的山门，得了一笔谢仪，不多，够用半年。"}]},{"id":"d03_13","title":"天降流星","weight":9,"once":true,"cond":{"realmMin":1,"realmMax":5},"text":"傍晚，天上裂了一片。不是云裂，是穹顶裂，裂缝里落下来一颗星，拖着长长的赤尾，砸在东边山里，震得你脚下的地都在痒。半个时辰后，四面八方都有修士往那边赶。你到得比他们早一点，陨坑还在冒烟，坑底那块石头是热的，表面浮着一层银色的水，水里映着别人的脸——你看了半天，才认出那是自己的。","choices":[{"text":"伸手去碰那块星石","effect":{"cult":90,"lifespan":6,"luck":5,"mo":4,"flagAdd":["星石接引"],"log":"触星石"},"result":"银水顺着你的手往上爬，一直爬到肩膀，凉得钻心。你听见极远的星野里有人在说话，说的是一种比古音更古的语言。等你甩掉那层水，掌心里留了一枚很淡的星印。此后你夜里看天，能看见别人看不见的几颗。"},{"text":"先凿下星石，分装带走","effect":{"wealth":350,"cult":40,"fame":6,"luck":-4,"log":"凿星石出货"},"result":"你掏出短刀，趁石头还软，凿下三块拳头大的边角，塞进储物袋里，用土把坑口掩了。第二天辰时，整座山头被上百修士围住。你混在人群里，听他们争论星石在哪。三块边角后来换成了三百五十灵石，你一张符都没烧。"},{"text":"守在坑边，拦住后来的人","effect":{"fame":18,"mind":8,"cult":35,"wealth":100,"mo":-3,"log":"守坑护星"},"result":"你站在坑边，对着第一个赶到的修士抱拳说，这块还活着，别动它。那人骂了一句，绕开了。后来的人越来越多，你把话重复了十几遍。天亮时星石自己沉了下去，坑底只剩一层焦土。有几个散修记着你的名字，塞给你些谢礼，说昨夜听你的没错。"}]},{"id":"d03_14","title":"地宫求生","weight":8,"once":true,"cond":{"realmMin":3,"realmMax":5},"text":"地宫塌的时候你正在第九层。石头砸下来，堵了来路，也堵了去路。你在黑暗中坐了很久，摸到壁上有一处渗水，还有一处极窄的缝隙在过风。你带来的符纸只剩三张，干粮两天。借着最后一颗萤石的光，你看见墙上有两行字：左边写着往水走，右边写着随风去。写字的两个人，都不会再写字了。","choices":[{"text":"顺着渗水的方向挖","effect":{"cult":60,"mind":10,"lifespan":-4,"luck":3,"log":"地宫循水"},"result":"你放开手挖，指甲翻了三根，挖出两丈深的洞，水忽然大了起来，冲了你满脸。那是一处地下暗河。你顺着暗河游了不知多远，最后从一处山涧里被冲出来，在石头上躺到天黑才能动。你的左耳从此听不太清，但你活着回来了。"},{"text":"顺着风走那条窄缝","effect":{"cult":75,"wealth":400,"mind":6,"mo":5,"luck":-3,"flagAdd":["地宫得藏"],"log":"地宫随风得藏"},"result":"你挤进那条缝，侧着身子挪了一整夜，衣服和皮都磨掉了。缝的尽头是一间没有塌的小室，供着一只铅盒，盒里是满当当的灵石和一卷来历不明的功法。你抱着盒子往回挤，挤到天亮才见到光。那功法你只敢看了一半。"},{"text":"原路凿开塌方，走回去","effect":{"cult":45,"fame":8,"mind":12,"lifespan":-6,"log":"地宫凿归"},"result":"你选择记忆里的来路。三张符全烧在碎石上，你用剑鞘当钎子，一寸一寸往外挪。第三天的夜里你凿穿了最后一层，爬出来时十根手指没有一根是好的。回头看那座山，它安静得像什么也没发生过。你从此不太爱进地宫。"}]},{"id":"d03_15","title":"道旁半石","weight":18,"once":false,"cond":{"realmMin":1},"text":"你走在官道上，脚背磕到一块硬东西。低头看，是半枚灵石——被人掰开用过的那种，断口很新，还剩一点灵气。附近没有人，草长得很高，风一过就齐刷刷地弯下去。你蹲下来，闻到一股很淡的血腥味，顺着味道看去，路边的草被压平了一小片，像有人在这里坐过，坐得不久。","choices":[{"text":"收起灵石，快些走","effect":{"wealth":15,"luck":2,"log":"道旁拾灵石"},"result":"你把那半枚灵石塞进袖袋，脚步没停。走出三里地，你听见身后有马蹄声经过，没往你这边看。晚上投店时你摸出灵石看了看，断口在灯下泛白。你忽然有点庆幸自己没多站一会儿。"},{"text":"顺着压平的草找一找","effect":{"wealth":40,"cult":10,"luck":3,"mind":2,"log":"道旁寻踪"},"result":"你拨开高草，找到一个被踩进泥里的布包，里面还有三枚完整的灵石和半块干饼。布包上绣着一个很旧的字，已经看不清了。你把干饼留在原处，石头带走。你不觉得这是善事，只觉得这样比较妥当。"}]},{"id":"d03_16","title":"巷口伤狸","weight":15,"once":false,"cond":{"realmMin":1},"text":"巷子口有只灰毛的狸猫，左前腿被什么东西咬穿了，正趴在一摊水边一下一下地舔伤口。见你走近，它没跑，只是把耳朵压下去，喉咙里发出很低的声，尾巴尖轻轻抽了两下。它的毛里混着几片不属于兽类的细鳞，你不确定那是它自己的，还是咬它的那个东西身上沾上的。","choices":[{"text":"掏出伤药，替它包扎","effect":{"wealth":-10,"luck":4,"mind":3,"flagAdd":["救猫"],"log":"巷口救狸"},"result":"你用牙咬开药囊，给它上了药，又撕了半根布条。它全程没叫，只是盯着你看。你包扎完起身要走，它跟着你走了两条街，在一处墙根停下，抬头冲你叫了一声，然后钻进墙洞。第二天你家门口多了一只死老鼠。"},{"text":"把它抱去药庐","effect":{"wealth":-20,"mind":4,"luck":3,"rel":{"江晚舟":8},"log":"抱猫投药庐"},"result":"你把它抱到药庐，江晚舟正在晒药，接过去翻了翻伤口，说这是被灵兽咬的，肉里进了毒。他忙了半个时辰，把猫包成个粽子。他抬头问你，是你的？你说不是。他哦了一声，说那更要治了。"},{"text":"绕开它，不惹麻烦","effect":{"mind":-1,"luck":-2,"log":"绕开伤狸"},"result":"你绕过去了。走出七八步，身后那声音还在，不高不低。你没有回头。晚上坐在灯下，你想起那几片细鳞——那东西若是还在附近，狸猫死在巷口是迟早的事。你想了想，把窗关了。"}]},{"id":"d03_17","title":"破庙避雨","weight":16,"once":false,"cond":{"realmMin":1},"text":"雨来得没有道理。半炷香前还是大晴天，转眼天就黑了一半，雨点大得砸在肩上发疼。你跑过三条街，屋檐下都站满了人。最后你钻进一间没挂牌子的旧庙，庙里供的是谁已经看不出来，神像的脸被雨气泡烂了。地上有个快熄的火堆，火堆边坐着一个人，正把手伸在火上烤。","choices":[{"text":"坐到火边，烤干衣裳","effect":{"mind":3,"luck":2,"rel":{"顾长歌":6},"log":"破庙避雨"},"result":"那人往边上挪了挪，给你让出半块地方。你烤着袖子，他忽然开口说这雨要下到后半夜。你问他是谁，他说记不清了，反正明天雨停就走。第二天雨停，人没了，火堆还温着，旁边留着一枚烤得半焦的栗子。"},{"text":"冒雨继续赶路","effect":{"cult":12,"lifespan":-1,"luck":-2,"log":"冒雨赶路"},"result":"你冲进雨里。雨水灌进领口，顺着背脊往下走，冷得你每走十步就要打个哆嗦。走到城外时雨小了，你浑身湿透，却意外发现经脉里那股滞涩的感觉被冲开了些。你打了个喷嚏，觉得这笔账不亏。"},{"text":"对着烂脸神像拜了一拜","effect":{"mind":4,"luck":3,"cult":8,"log":"破庙拜神"},"result":"你在神像前站直，拱手拜了三下。火堆边那人抬眼看了你一眼，笑了一声，没说什么。雨下到半夜，你在角落里打了个盹。醒来时火还没灭，供桌上多了一只豁口的碗，碗里是清水。"}]},{"id":"d03_18","title":"夜市一碗面","weight":18,"once":false,"cond":{"realmMin":1},"text":"夜市的灯一盏一盏亮起来，油烟混着糖味，从街口一直飘到街尾。你在一家面摊前坐下，老板娘手脚很快，一碗面端上来，汤面上浮着两片薄肉和一把葱花，热气直往脸上扑。旁边一桌坐着三个散修，正为剑修到底该不该用剑鞘吵得面红耳赤，谁也不肯先停。面很烫，你得等一会儿。","choices":[{"text":"先喝汤，听他们吵","effect":{"mind":3,"luck":2,"wealth":-2,"log":"夜市吃面"},"result":"汤确实好。你听了半炷香，三个人从剑鞘吵到师承，又吵到谁家山门的饭难吃，最后一致同意丹霞谷的伙食最好。你吃完面，他们还在吵。你放下面钱走了，心里想，修仙修到最后，大概也就是为了一碗热汤。"},{"text":"替他们判个胜负","effect":{"fame":4,"mind":2,"wealth":-2,"log":"夜市论剑"},"result":"你插了一句：剑鞘是给剑挡雨的。三个人同时看你。安静了两息，其中一个拍桌说有理，另一个说放屁，第三个把碗一推，说再上三碗面边吃边论。你被拉着坐了一炷香，面钱最后是那个说放屁的人付的。"},{"text":"多加一份肉，慢慢吃","effect":{"wealth":-6,"mind":5,"lifespan":1,"log":"夜市加肉"},"result":"你让老板娘又添了一份肉。她切得比刚才厚。你吃得很慢，把每根面都嚼完，连汤也喝干了。结账时她说你气色不好，是不是熬夜熬的。你说是。她叹了口气，多给了你半勺汤。这半勺汤你记了很久。"}]},{"id":"d03_19","title":"集市小贼","weight":15,"once":false,"cond":{"realmMin":1},"text":"人挤人的集市上，你忽然觉得腰间一轻。回头时，一个瘦小的身影正往人堆里钻，怀里鼓着一块，跑得头也不回。那是个半大孩子，顶多十三四岁，跑得很快，但脚步是瘸的，一高一低。你的荷包里有这个月的全部用度，一枚没剩。周围的人都在低头看货，没人注意这边。","choices":[{"text":"追上去，把孩子揪回来","effect":{"fame":5,"wealth":40,"mo":3,"log":"集市擒小贼"},"result":"你三步追上，一把扣住他的后领。他挣了两下没挣开，忽然不挣了，低头把荷包举起来。你松手时看见他脚踝上有一圈很旧的疤。你把荷包拿回来，数了数，一枚不少。他跑了，一瘸一拐，跑得很快。"},{"text":"不追，只喊一声","effect":{"fame":2,"wealth":-60,"luck":-1,"log":"集市失荷包"},"result":"你喊了一声小贼。人群骚动起来，那孩子混进人流，转眼没了。荷包没了，这个月的用度也没了。晚上你啃着干粮，忽然想起他脚上那圈疤，像是被什么捆过很久。你把最后一口干粮咽下去，不再想了。"},{"text":"追上去，分他一半灵石","effect":{"wealth":-30,"mind":5,"luck":3,"fame":3,"flagAdd":["济小贼"],"log":"集市济小贼"},"result":"你在巷口堵住他，抽出荷包，倒出一半灵石塞进他怀里。他整个人僵住了。你说，下次别在这条街偷，这街上的人会打断你的腿。他捏着灵石看了你很久，点了点头。半年后你在另一个城里，被人从背后叫住，是他。"}]},{"id":"d03_20","title":"街角半句准","weight":14,"once":false,"cond":{"realmMin":1},"text":"街角支着一张旧桌子，桌后坐着个瞎眼的老头，旗子上写着半句准。他听见你的脚步声，抬手招了招，说：过来，我说半句。你站住了。他说：你这一生会死在——他停在这里，慢条斯理地倒了杯茶。茶是凉的，杯沿还有一道豁口。你等他往下说，他喝了三口，还是不说。","choices":[{"text":"坐下来，等他说完","effect":{"luck":3,"mind":3,"cult":10,"wealth":-10,"log":"半句准算命"},"result":"你坐下，等到茶壶见了底。他终于开口：你这一生会死在——我不知道的地方。你愣了半天，反应过来他在耍你。你给了钱，起身走。走出十步，他忽然在背后补了一句：但你今天别走西边那条巷子。你走了东边。"},{"text":"把茶钱放下就走","effect":{"wealth":-5,"luck":1,"mind":1,"log":"算命不留"},"result":"你放下几枚铜钱，转身走了。身后老头还在说，哎，我说半句你就走。你走你的。当夜西边那条巷子塌了半边墙，压死了两头驴。你第二天听说这事，站在街口站了很久，然后回去找那张桌子。桌子还在，人没了。"},{"text":"反问他：那你呢","effect":{"mind":4,"luck":2,"fame":2,"log":"反问算命人"},"result":"你反问他，那你这一生会死在哪儿。老头笑了一下，把手里的茶泼在地上，说：我早就死过了。他把旗子收起来，桌子扛在肩上走了。第二天你路过街角，地上还剩一点茶渍，摆摊的位置干净得像没人来过。"}]},{"id":"d03_21","title":"老丐半丹","weight":13,"once":false,"cond":{"realmMin":1},"text":"你从城门出来，被一只手拽住了衣角。手很脏，指节粗大，力气却不大，一挣就能脱开。那是个老乞丐，蹲在墙根下，面前摆着一只破碗，碗底积着些雨水。他什么也没讨，只是从怀里摸出半颗黑乎乎的丹药，塞进你手里，说了两个字：含着。丹上有牙印，像是被人咬过一半。他的眼睛很亮，亮得不像乞丐。","choices":[{"text":"不问缘由，含在舌下","effect":{"cult":25,"lifespan":3,"luck":4,"mind":3,"log":"含老丐半丹"},"result":"丹药在舌下化开，一股热气从喉咙直冲眉心，比你想的干净得多。你站了一会儿，觉得眼前的路都清楚了些。回头想问，老乞丐已经睡着了，打鼾打得很响。你把剩下的一点丹渣吐在掌心看，看不出名堂。"},{"text":"还给他，去买吃的给他","effect":{"wealth":-30,"mind":6,"luck":5,"fame":4,"flagAdd":["施粥济丐"],"log":"买食与老丐"},"result":"你把丹药放回他碗里，跑去街对面的铺子买了两个热馒头和一碗粥。回来时老乞丐睁开眼，看着馒头看了很久，然后掰了一半，递回给你。你接过来吃了。他没吃那半颗丹，揣回怀里，说留着下次。"},{"text":"收下丹药，但不吃","effect":{"cult":8,"luck":2,"flagAdd":["藏半丹"],"log":"收藏半颗丹"},"result":"你把丹药用布包好收进怀里，冲他拱手道了谢。老乞丐摆摆手，说你别谢我，谢你自己。你没听懂。三年后你在另一场生死边沿想起这半颗丹，含下去，救了你一条命。那时你才明白他说的是哪一句。"}]},{"id":"d03_22","title":"寄错的信","weight":14,"once":false,"cond":{"realmMin":1},"text":"信是驿站递来的，封皮上写着别人的名字，地址却是你住的院子。纸很旧，边角发黄，封口的火漆早就裂了，一碰就掉渣。你把信举到灯下，能看见里面薄薄一张纸，只有几行字，笔画压得很重。送信的伙计说，写这信的人三年前就已经死了。他说完就跑了，好像怕你追问。","choices":[{"text":"拆开看","effect":{"cult":30,"mind":-3,"luck":2,"flagAdd":["错信"],"log":"拆阅错信"},"result":"信上只有五行字，是一份药方，末行写着：若我不回，给他。署名是你不认识的名字，收信人也不是你。落款日期是三年前，正是这一带乱过一阵的时候。你把药方抄了一份收起来，原信烧了。你不确定自己做得对不对。"},{"text":"原样送回去","effect":{"fame":3,"mind":4,"wealth":-10,"luck":3,"log":"退还原信"},"result":"你花了半天找到信上那个地址。院子已经空了，门上贴着封条，封条旧得发白。邻居说那家人在三年前全没了。你把信从门缝底下塞了进去。回来的路上你走得很慢。你觉得自己好像替谁办完了一件事。"},{"text":"按地址去问个清楚","effect":{"cult":40,"mind":5,"luck":5,"wealth":-20,"flagAdd":["追查错信"],"log":"追查错信"},"result":"你顺着地址找到了城外的一处荒宅，宅子里还留着半个药炉和几本没烧完的账簿。你翻到一页，上面记着三年前一批药材的来路，来路很不干净。你把账簿收好，退出来。这封信寄错人，或许不是寄错了。也许只是你们都没懂。"}]},{"id":"d04_01","title":"灶房里的师妹","weight":12,"once":true,"cond":{"realmMin":1,"realmMax":5,"flagNone":["识得苏婉儿"]},"text":"夜半路过灶房，你听见极轻的咀嚼声。推门一看，小师妹苏婉儿蹲在灶台后，怀里抱着半块桂花糕，腮帮子鼓着，看见你也不慌，只把食指竖在唇前，另一只手往身后藏。她说这是替厨娘试味，若你肯替她瞒下，明日有她亲手蒸的松子糖。灶上还温着一笼馒头，窗外巡夜的灯已经晃到第三进院子了。夜风从窗缝里钻进来，带着一股松脂与冷露的气味。","choices":[{"text":"替她把风，等她吃完","effect":{"rel":{"苏婉儿":18},"luck":3,"cult":20,"flagAdd":["识得苏婉儿"],"log":"灶房共分桂花糕"},"result":"你把门掩上，站在廊下听巡夜人的脚步近了又远。她吃得极快，末了掰下一角塞给你，自己先红了耳根，说是谢你半块糕。此后她见你总要绕过来喊一声师兄，喊得后山那片竹林里的鸟都认得你了。"},{"text":"板起脸，叫她去领罚","effect":{"fame":6,"contribution":10,"rel":{"苏婉儿":-5},"log":"夜半秉公罚师妹"},"result":"她愣了一瞬，把糕放回蒸笼，擦干净手，真去戒律堂外跪了半宿霜。第二日你从她身边过，她抬头看你一眼，没说话，眼睛却很亮。管事记了你一笔秉公，你心里却没由来地空了一角。"}]},{"id":"d04_02","title":"松子糖与闭关","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":5,"flagAll":["识得苏婉儿"]},"text":"苏婉儿抱着一小罐松子糖堵在你洞府门口，说你上回帮她试的新丹方略有小成，她想讨三日时辰，请你替她看火候。话说到一半，宗门传讯的符纸烧在你手心：明日午时前后是闭关冲击瓶颈最厚的一段气机。她把糖罐往前递了递，又飞快收回去半寸，说你要是没空就罢了，她自己去也行。罐口还冒着热气，她指甲缝里沾着没洗净的糖霜。","choices":[{"text":"推了闭关，去替她看火","effect":{"rel":{"苏婉儿":20},"cult":-40,"luck":4,"flagAdd":["与苏婉儿情深"],"log":"为她误了关期"},"result":"三日夜你在丹炉边添了七十四次炭，眼皮沉得压不住，只看她额前一缕汗。丹成的刹那她把手拍在丹炉上，烫出一点红，笑得像偷了整座山的糖。气机那段最厚的时候过去了，你没提，她也没问。"},{"text":"收下糖，说明日要闭关","effect":{"cult":90,"mind":5,"rel":{"苏婉儿":4},"log":"闭关中托人送炭"},"result":"她点点头，把糖罐往你怀里一塞就走了，走得极快。你入定七日，出关时罐子空了半截，底下压着一张纸条，写着火候的诀要，字迹很用力。听人说这七日灶上的炭，是她一筐一筐自己挑上山的。"},{"text":"只把诀要写给她，各自忙","effect":{"cult":60,"contribution":8,"rel":{"苏婉儿":8},"log":"一纸诀要赠师妹"},"result":"你伏案写了半个时辰，把看火的诀窍一条条写清，连炭该添几分都标了数。她捏着纸看了许久，说写得比戒律堂的玉简还仔细，然后抱着罐子跑了。那年冬天她炼成了第一炉好丹。"}]},{"id":"d04_03","title":"雨里练剑的师姐","weight":12,"once":true,"cond":{"realmMin":1,"realmMax":5,"flagNone":["识得沈青霜"]},"text":"暮雨忽至，演武场上的人都散了，只剩沈青霜一人在雨中出剑。剑势不快，一式重复了不知多少遍，雨水顺着她的下颌往下淌，青衫贴在背上。你的伞在手里，她背对着你，看不见你。四下无人，雨声很密，檐下的水线连成一片白。你若转身走开，她大约不会知道有谁来过。","choices":[{"text":"撑伞立在她身后","effect":{"rel":{"沈青霜":16},"mind":4,"cult":30,"flagAdd":["识得沈青霜"],"log":"雨中为师姐撑伞"},"result":"她收了剑才回头，看见是你，眉梢动了一下。她说雨水碍不住剑，可也没让你把伞收走。两人并肩走出演武场，一路没说什么，伞面往她那边偏了半寸，她装作没有看见。"},{"text":"收伞入雨，陪她练完","effect":{"rel":{"沈青霜":20},"cult":70,"mind":-3,"flagAdd":["识得沈青霜"],"log":"雨中同练至掌灯"},"result":"你踏进雨里，站到她身侧跟着出剑，招式笨拙，被她纠正了三次腕。她终于开口，说你腕太硬，心太软，两样都该练。雨停时两人浑身湿透，她把自己那半块干帕子丢给你，转身就走了。"},{"text":"悄然退开，不扰她","effect":{"cult":40,"mind":6,"rel":{"沈青霜":8},"log":"远远观剑悟一理"},"result":"你退到廊下看了半个时辰，看她把那式重复到雨都停了。你忽然明白了自己剑里缺的是什么，回去在自己的剑鞘上刻了一道浅痕。第二日演武场上她朝你这边看了一眼，什么都没说。"}]},{"id":"d04_04","title":"剑穗与旧伤","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":5,"flagAll":["识得沈青霜"]},"text":"沈青霜的剑柄上缠着一截旧穗，颜色已洗得发白。你要出远门，她忽然把你叫到崖边，把一截新搓的剑穗递给你，青色，收口处有一道歪七扭八的针脚。她说路上用得上，说得很平。你注意到她持剑的右腕在阴天里微微发抖，那是旧年里替你挡的那一剑留下的。崖下云雾翻涌，风一阵紧过一阵。","choices":[{"text":"接过，说替你系上","effect":{"rel":{"沈青霜":18},"mind":5,"cult":40,"flagAdd":["与沈青霜情深"],"log":"青穗系于剑柄"},"result":"你把旧穗解下来收进怀里，换上新的一截，打了个她看不懂的结。她盯了那个结片刻，说难看。你说牢。她低声说了句什么，崖上风大，你没听清，也没敢再问一遍。"},{"text":"问她的腕伤，塞药给她","effect":{"rel":{"沈青霜":14},"wealth":-80,"fame":3,"flagAdd":["与沈青霜情深"],"log":"千金买药医腕伤"},"result":"你绕到下三街，用几乎全部灵石换了一小盒续筋的膏。她不肯收，你便放在她门口的剑架上，转身走。第二日那盒子空了，剑架上多了一行极浅的刻字：不必。"},{"text":"还回去，说你不惯带饰物","effect":{"cult":70,"mind":4,"rel":{"沈青霜":-6},"log":"退还剑穗自修行"},"result":"你把穗子递还，说剑上挂东西碍事。她接过去，指腹在那道歪针脚上按了很久，然后收入袖中，说也是。此后她的剑柄上仍旧只有那截白得发旧的穗子，再没换过。"}]},{"id":"d04_05","title":"师兄的酒与真话","weight":12,"once":true,"cond":{"realmMin":1,"realmMax":5,"flagNone":["识得顾长歌"]},"text":"顾长歌翻墙进来，肩上搭着一坛酒，酒气混着松脂味。他说山下酒肆新酿，一个人喝没意思，顺手就给你带了一坛。两人坐在你屋顶上，他笑得没心没肺，说了半宿的胡话，说宗门大比里谁最不经打，说某位长老的胡子像晒坏的拂尘。酒到七分，山下的灯火一盏一盏灭下去，他忽然停了，很久没说话。","choices":[{"text":"陪他喝到天亮","effect":{"rel":{"顾长歌":18},"luck":5,"cult":-20,"flagAdd":["识得顾长歌"],"log":"屋脊对饮至天明"},"result":"那坛酒空了，他也没说什么正经话。天快亮时他把空坛子往山下一掷，说摔了才吉利。你次日修行时头晕得厉害，被戒律堂记了一笔。他听说后笑了半天，说值。"},{"text":"问他为何今夜不笑","effect":{"rel":{"顾长歌":16},"mind":6,"fame":3,"flagAdd":["识得顾长歌"],"log":"屋脊问师兄心事"},"result":"他愣住，说你会不会看人。沉默一阵，他说他有个同乡死在去年的围剿里，连尸首都没带回来，明日是忌日。说完又笑起来，说喝酒喝酒。你陪他把剩下的半坛喝完，这次他笑得比方才真。"},{"text":"推说功课未毕，请他自便","effect":{"cult":80,"mind":3,"rel":{"顾长歌":-4},"log":"闭门推却师兄酒"},"result":"他说行行行，就你正经，抱着酒坛跳下屋顶，落地时踉跄了一下，回头冲你摆手。你回屋打坐，心却静不下来。第二日听说他在酒肆里一个人喝到关店。"}]},{"id":"d04_06","title":"替你挡的一鞭","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":5,"flagAll":["识得顾长歌"]},"text":"外门演武，执鞭的长老说你那式起手不正，鞭子当众落下来。你未及躲，顾长歌横插一步挡在前面，硬吃了一记，后背立时渗出血线。他龇牙咧嘴地笑，说长老手滑。周围的弟子都低下头，没人出声。散场后他靠在你肩上，声音压得很低：这一下换你欠我一顿酒，还要陪我去趟后山。","choices":[{"text":"背他去药庐，一路应下","effect":{"rel":{"顾长歌":20},"wealth":-100,"cult":-30,"flagAdd":["与顾长歌情深"],"log":"背师兄赴药庐"},"result":"他比看着沉，压得你脊背发酸。药庐的江晚舟替他上药，看见那一鞭直摇头。回来的路上他说，其实那鞭他躲得开，只是躲了长老面上不好看。你脚步一顿，他说你别停，继续走。"},{"text":"替他上药，不问缘由","effect":{"rel":{"顾长歌":15},"mind":4,"cult":30,"flagAdd":["与顾长歌情深"],"log":"亲手为师兄上药"},"result":"你把他按在石凳上，用清水一点点洗净那道血痕。他背对着你，胡说八道了一路，说到一半忽然没了声。你抬头看，他正望着远处山门，说多谢，说了两个字就再没下文。"},{"text":"当场向长老认错，自领其罚","effect":{"fame":12,"contribution":15,"rel":{"顾长歌":8},"cult":-40,"log":"自领鞭刑换师兄"},"result":"你上前一步认下起手之误，长老的鞭子便落到了你身上。顾长歌在旁边骂了一声，被执事按住。散场后他一句话没说，只把药膏丢给你，自己走了，走得比平时慢。"}]},{"id":"d04_07","title":"药庐里的少年","weight":12,"once":true,"cond":{"realmMin":1,"realmMax":5,"flagNone":["识得江晚舟"]},"text":"你替人送一批药材到山下药庐。少年江晚舟坐在窗边拣药，指节很白，拣得极慢，因为左手的旧伤在阴天里不听话。他抬眼看了看你送来的药材，说这批天麻受潮了，若是入药会伤经脉。这话若是报到管事那里，负责采买的执事要挨罚，药庐的名声也要跟着受损。他问你怎么看，声音很轻。","choices":[{"text":"自掏灵石，重买一批","effect":{"rel":{"江晚舟":16},"wealth":-150,"fame":4,"flagAdd":["识得江晚舟"],"log":"自赔灵石换药材"},"result":"你去了下三街的药行，把受潮的换成了新货。江晚舟把退回来的旧药材一一晾在檐下，说阴干后仍可外用，不必全弃。他给你包了一小包安神的药，说夜里睡得沉些，不算钱。"},{"text":"留下字据，如实上报","effect":{"contribution":15,"fame":8,"rel":{"江晚舟":-3},"log":"如实上报药材事"},"result":"执事挨了罚，采买的路子也换了一遍。江晚舟没说什么，只是递药包的手停了停。后来药庐里新到的药材都干得极好，你知道那是谁的功劳，他一个字也没提过。"},{"text":"陪他把受潮的药材分拣","effect":{"rel":{"江晚舟":12},"mind":5,"cult":20,"flagAdd":["识得江晚舟"],"log":"药庐分药至深夜"},"result":"两人坐着挑了大半夜，他教你辨药材的成色，辨得细致。灯芯短了三次，他用那只旧伤的手替你把灯芯剪齐。临走时他说，你比药庐里所有人都坐得住。"}]},{"id":"d04_08","title":"替他试的药","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":5,"flagAll":["识得江晚舟"]},"text":"江晚舟捎信请你过去。药庐后堂摆着一只小碗，药汁成色古怪，气味冲得人眼睛发酸。他说这是他为自己配的方子，试了六次，前五次都呕得下不了床。他不能再试了，可若成了，他那只手往后阴天就不疼。他把碗端给你看，又放下，说要不算了，反正疼了这些年也惯了。","choices":[{"text":"先舀半勺，自己尝","effect":{"rel":{"江晚舟":20},"cult":-50,"mind":6,"flagAdd":["与江晚舟情深"],"log":"替他先尝苦药"},"result":"药入喉像吞了一把火。你压着翻涌的气息看了他半炷香，才说似乎能行。他冲过来探你脉，手抖得按不准。那方子后来成了，他那只手在阴天里终于能稳稳握住药杵。"},{"text":"劝他别再拿自己试药","effect":{"rel":{"江晚舟":14},"mind":8,"luck":4,"flagAdd":["与江晚舟情深"],"log":"劝他弃药护己身"},"result":"你说疼就疼，手还在，人得先活着。他听了很久，然后把那碗药倒进了沟里，洗净了碗。他说你说话像个不讲道理的长辈，可那天他第一次没在阴天里皱眉头。"},{"text":"替他求谷中丹师加一味","effect":{"contribution":-20,"rel":{"江晚舟":10},"cult":60,"flagAdd":["与江晚舟情深"],"log":"求丹师改药方"},"result":"丹师看在旧情分上改了方子，一味药换成了性平的引子，药效慢了三成，却不再呕人。江晚舟按着新方子重配，试到第九次才好。他说慢些也无妨，反正他有的是日子。"}]},{"id":"d04_09","title":"山门外的白影","weight":12,"once":true,"cond":{"realmMin":1,"realmMax":5,"flagNone":["识得姜雪璃"]},"text":"夜巡至后山断崖，你撞见一个白衣女子蹲在崖边，正用匕首剥一头妖兽的筋，手法娴熟，全不顾身上溅了血。她抬头看你，眼睛在月光下亮得惊人，说这头畜生吃了山下三户人家，她追了两日才了结。她袖口绣着万魔殿的纹，见你盯着看，也不遮，只问你要不要分一半筋。山下村落的灯，还亮着零星几点。","choices":[{"text":"接过筋，替她掩去血迹","effect":{"rel":{"姜雪璃":16},"mo":5,"luck":4,"flagAdd":["识得姜雪璃"],"log":"崖边分筋掩行迹"},"result":"你把那半条筋收进袖里，又用崖边的枯草扫平了血迹。她说你们正道的讲究真多，语气里却没多少嘲意。临走时她说明夜还来，若你想见，就在崖边点一盏灯。你去了。"},{"text":"问她为何不问宗门便杀","effect":{"rel":{"姜雪璃":12},"mind":6,"fame":6,"flagAdd":["识得姜雪璃"],"log":"崖上质问魔殿女"},"result":"她笑了一声，问你那三户人家报案时，哪个正道宗门接了。你答不上来。她把匕首在袖上擦净，说你们讲规矩，我讲人命，谁也别嫌谁脏。你回山门时天已泛白，一路都在想这句话。"},{"text":"退开，上报执事","effect":{"contribution":20,"fame":8,"mo":-5,"rel":{"姜雪璃":-8},"log":"上报后山魔道踪"},"result":"执事当晚加了三班巡夜，后山清净了半月。半月后你在集市上擦肩而过一个白衣身影，她没看你，只留下一句：那三户人家的坟，是你宗门修的么。你站在原地，没答上话。"}]},{"id":"d04_10","title":"雪夜的一碗汤","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":5,"flagAll":["识得姜雪璃"]},"text":"大雪封了山道，你被困在半山的破庙里，内息冻得几乎走不动。庙门被推开，姜雪璃带着一身风雪进来，手里拎着一只瓦罐。她说万魔殿的商队在前头翻了车，她顺手捡的。汤是热的，她一碗你一碗。庙外风雪正紧，破窗纸被吹得哗哗响，她的刀横在膝上，始终没解下来。","choices":[{"text":"把僧袍撕了给她裹膝","effect":{"rel":{"姜雪璃":18},"mind":4,"cult":40,"flagAdd":["与姜雪璃情深"],"log":"破庙分袍御风雪"},"result":"她盯着那半幅旧袍看了很久，终究没有推回来。她说不必这样，我说不定明日就杀你家的人。你说那明日再说。火堆噼啪响了一夜，两人都没睡，也没再多说什么。"},{"text":"问她为何不肯入正道","effect":{"rel":{"姜雪璃":15},"mo":6,"mind":-4,"flagAdd":["与姜雪璃情深"],"log":"庙中问魔女旧事"},"result":"她说她八岁那年被正道当妖物钉在桩上，是万魔殿的人拔的钉。她说这话时语气很平，像在说别人的事。你想说些什么，她把汤碗塞回你手里，说喝吧，凉了更苦。"},{"text":"守在庙中，不与她说半句","effect":{"cult":70,"mind":8,"mo":-6,"rel":{"姜雪璃":6},"log":"一夜枯坐各守本心"},"result":"你抱着剑坐在佛龛下打坐，她靠着柱子擦刀，两个时辰谁也没开口。天亮时她先走了，只在雪地上留下一行字：你比我见过的正道都硬。你看着那行字，直到雪把它填平。"}]},{"id":"d04_11","title":"旧恩在白芷","weight":12,"once":true,"cond":{"realmMin":1,"realmMax":5,"flagNone":["识得白芷"]},"text":"丹霞谷的商队过山门，押车的女药女在人群里一眼认出你，抱着药箱走过来，眼圈有点红。她说三年前你在乱葬岗背过一个浑身是毒的女孩，那人喂了两旬的解毒汤才活下来，就是你眼前这位。她叫白芷。她说她欠你一条命，问你要不要现在还。山道上的尘还没落定，商队的铃铛响了一路。","choices":[{"text":"说不要还，请她喝口茶","effect":{"rel":{"白芷":16},"luck":5,"mind":4,"flagAdd":["识得白芷"],"log":"与旧识白芷叙旧"},"result":"你把商队引到山门外的茶棚，要了两碗粗茶。她捧着碗不喝，只顾着看你，像要把你看清。末了她说，那我先记着，记得越久越值钱。茶钱她抢着付了，用的还是谷里发的月钱。"},{"text":"请她替宗门看一批丹材","effect":{"contribution":25,"fame":6,"rel":{"白芷":10},"flagAdd":["识得白芷"],"log":"引白芷验宗门丹材"},"result":"她验得极细，指出三味药火候过了，当场退了货。管事的脸色不好看，她也不看人脸色。事后你被记了一功，她只说是还账，还得很痛快。"},{"text":"推说往事已远，不必再提","effect":{"cult":70,"mind":5,"rel":{"白芷":-6},"log":"故人相认未敢应"},"result":"她抱着药箱站了很久，说也是，三年了。商队走时她回头看了一眼，那一眼让你想起当年乱葬岗上的雨。你回屋打坐，那晚入定得极慢，慢得像有人在耳边数着什么。"}]},{"id":"d04_12","title":"守在床前的夜","weight":11,"once":true,"cond":{"realmMin":2,"realmMax":5,"flagAll":["识得白芷"]},"text":"你在与血煞门的伏杀里伤及经脉，昏了三日。醒来时天色未明，榻边有人坐着，背对着窗，怀里抱着一碗早凉透的汤，头一点一点地打盹。案上摆着换下来的药布，摞了一小叠，每一块都叠得极齐。灯花已经烧到了根，屋里只有药味和极轻的呼吸声，那人并没有察觉你醒了。","choices":[{"text":"装睡，把这一觉留给她","effect":{"mind":10,"cult":50,"rel":{"白芷":18,"江晚舟":8},"flagAdd":["与白芷情深"],"log":"醒时装睡留人安眠"},"result":"你闭着眼听完那碗汤被轻轻放下的声响，听完那人挪动身子重新坐直的动静，直到窗外泛起灰白。你才睁开眼，问守了多久。她说不久，然后扶着墙踉跄了两步。原来她自己的腕上还缠着药布。"},{"text":"先开口，谢这几日守候","effect":{"rel":{"白芷":16,"江晚舟":6},"mind":8,"fame":4,"flagAdd":["与白芷情深"],"log":"伤榻谢守夜之人"},"result":"她手一抖，那碗汤差点翻了，慌忙站起来替你垫高枕头，嘴上说着没什么，替人守夜本就是药女的活计。话说到一半自己停了，两个人都没接下去。窗外有鸟叫了一声，你忽然觉得伤处没那么疼。"},{"text":"取过汤碗，自己喝尽","effect":{"cult":40,"mind":4,"contribution":10,"rel":{"白芷":12},"flagAdd":["与白芷情深"],"log":"伤中饮尽冷药汤"},"result":"汤是苦的，凉透了更苦。你仰头喝完，把碗放下，说下次别等了，去睡。她盯着空碗看了一会儿，忽然笑，说你这人真没良心，白守了。说完收拾药布退了出去，脚步很轻。"}]},{"id":"d04_13","title":"庆典夜的同游","weight":11,"once":true,"cond":{"realmMin":1,"realmMax":5},"text":"宗门大典燃起满山的长明灯，弟子们都下了山去看市集。你独自立在灯下，身后走来一个人，说灯影里的你看着有些孤单，问你要不要一同走一段。两人沿着长街慢慢走，糖画的甜味混着爆竹的烟气扑面而来。走过第三条街口，那人停住，说前面就是人最多的桥，你若嫌吵，可以在此别过。","choices":[{"text":"一同过桥看灯","effect":{"rel":{"苏婉儿":8,"沈青霜":8},"luck":6,"cult":30,"log":"庆典夜并肩过桥"},"result":"桥上人挤，你替那人挡了两回醉汉。那人买了两支糖葫芦，分你一支，自己那支吃到一半被人撞掉了，气得脸都鼓起来。回程时两人隔着一肩的距离走着，谁也没有加快脚步。"},{"text":"借口清静，独自折返","effect":{"cult":100,"mind":8,"rel":{"苏婉儿":-3},"log":"庆典夜独归入定"},"result":"你留那人一人在灯影里，转身踏上山道。山门的灯比山下暗得多，你入定了一夜，气机顺得罕见。次日听说那晚最后一场烟火，是整座城的人一起抬头看的。"},{"text":"改走僻静小巷，绕远路","effect":{"rel":{"苏婉儿":4,"顾长歌":4},"luck":4,"mind":5,"log":"小巷绕远话至夜深"},"result":"小巷里没有灯，只有两旁的窗透出暖黄。两人说了一路闲话，说的都是些不着边际的事。走到尽头时那人忽然停住，说这条路太长了些，然后自己先笑了，说回去吧。"}]},{"id":"d04_14","title":"并肩之后","weight":11,"once":true,"cond":{"realmMin":3,"realmMax":5},"text":"魔道夜袭退去，天色将明。你与同行之人背靠背坐在残破的城垛上，衣甲上都是血，一时都没力气说话。风从关外吹来，卷着焦土与铁锈的气味，远处山脊渐渐亮成一条白线。这一战折了七个人，昨夜还一同分过干粮。那人忽然说，这样打下去，总有一次回不来。说完就不吭声了，只看你，像在等一句什么。","choices":[{"text":"说那就一起回去","effect":{"rel":{"沈青霜":8,"顾长歌":8,"姜雪璃":8,"白芷":8},"mind":12,"cult":80,"log":"并肩之后约定同归"},"result":"那人重重应了一声，把手伸过来，你们用沾着血的手掌碰了一下，算是立约。回营的路上谁都没再提那句话，可此后每次出战，总有人会站在你身侧那半步的位置上，从没落空过。"},{"text":"把话咽下去，起身收剑","effect":{"cult":150,"mind":6,"mo":-5,"rel":{"沈青霜":4},"log":"话到嘴边咽回肚里"},"result":"你站起来收剑入鞘，说走吧。身后静了很久，才响起跟着起身的声音。那一年你的剑势进境极快，快到连自己都觉得心惊。有些话你知道它还在那儿，只是没有了说出口的时辰。"},{"text":"先替那人缠好伤口","effect":{"rel":{"沈青霜":6,"顾长歌":6,"江晚舟":6,"白芷":6},"fame":6,"cult":40,"mind":4,"log":"并肩战后缠伤裹甲"},"result":"你撕了自己的内衬替那人勒住肩上的口子，勒得很紧，那人疼得龇牙也没躲。缠完你才说，方才那句话，打完这仗再说。那人愣了愣，低头笑了一下，说好。"}]},{"id":"d04_15","title":"冬至的愿牌","weight":5,"once":true,"cond":{"realmMin":3,"realmMax":5,"flagAny":["与苏婉儿情深","与沈青霜情深","与姜雪璃情深","与白芷情深","与江晚舟情深","与顾长歌情深"]},"text":"宗门冬至，山门挂起红绸，弟子们都在写来年的愿牌。有人在你洞府外站了半个时辰，手里捏着一块没写完的愿牌，终究还是敲了门。那人说有些话想问，问完就走，绝不纠缠。窗外落着细雪，炉上的水开了又续，壶盖被顶得轻响。灯芯挑得极短，屋里只剩一线微光，照不清彼此的脸。两人隔着一张小几坐着，谁都没有先开口。","choices":[{"text":"接过愿牌，写完下半句","effect":{"partner":"苏婉儿","rel":{"苏婉儿":15},"mind":15,"fame":15,"log":"结为道侣共证长生"},"result":"你把那块木牌接过来，在「愿与」二字后面添了三笔，字迹被雪气浸得有点糊。那人凑过来看，看了很久，说写得真难看。你说是，但改不了了。那年山门的红绸，一直挂到了开春。"},{"text":"执手为誓，从此同行","effect":{"partner":"姜雪璃","rel":{"姜雪璃":15},"mo":6,"fame":8,"mind":10,"log":"与魔殿圣女结道侣"},"result":"你把掌心摊开，那人用指尖在你手心划了一横，说是万魔殿的誓，划开了就退不得。此事在两道之间喧嚷了许久，你一概不理。此后每逢月夜，山外总有人点一盏灯，你便出去，天亮方归。"},{"text":"婉拒，专心求道","effect":{"cult":220,"mind":12,"luck":-3,"rel":{"苏婉儿":-8,"沈青霜":-8,"江晚舟":-8,"白芷":-8,"顾长歌":-8,"姜雪璃":-8},"log":"婉拒情缘一心求道"},"result":"你说大道未成，不敢许人。那人点点头，说早料到了，把空愿牌挂在洞府外的梅枝上，转身走进雪里。那树梅当年开得极盛，你却在梅下坐了整整一夜，直到雪把肩头埋白。"}]},{"id":"d05_01","title":"经脉逆行","weight":11,"once":true,"cond":{"realmMin":2,"realmMax":6},"text":"闭关第四十九日，你正走最后一个周天，丹田里那股真元忽然不听使唤，顺着经脉倒着爬了回去。你能听见自己骨头缝里有细微的响声，像春冰在裂。香案上的三炷香烧到一半齐齐灭了，洞府石门从外头落了锁，是你自己下的令。窗缝里一线天光正照在你手背上，皮肉底下的青筋鼓成一团团乱麻，越挣越紧。","choices":[{"text":"咬破舌尖，强行镇压","effect":{"cult":180,"mind":8,"lifespan":-20,"flagAdd":["经脉有损"],"log":"强压走火入魔"},"result":"你咬穿舌尖，一口血喷在丹田上，硬生生把逆流的真元一寸寸掰回正道。三日三夜你汗湿了两层蒲团，出关时左手指节还是发颤。修为涨了一截，可你心里清楚，有几条经脉从此是补不回原样的了。"},{"text":"散功保命，任它退去","effect":{"cult":-120,"mind":12,"luck":4,"log":"散功自保"},"result":"你松开神念，任那口真元倒卷出体外。洞府里刮起一阵小风，吹落了半墙经卷。你境界退了半层，可神台前所未有的干净，连呼吸都比从前轻。有人在门外问出了什么事，你说无妨，只是关了一场没成的关。"},{"text":"反其道行，顺它走完","effect":{"cult":300,"mo":12,"lifespan":-10,"flagAdd":["经脉有损"],"log":"逆行周天求险功"},"result":"你索性把周天倒着行了一遍。浑身的血像是被人从脚底往头顶抽，疼得你睁不开眼，疼过之后却有一种极陌生的畅快。境界确实上了一层，可你从此每次入定，都有一缕不属于你的念头在旁边静静看着。"}]},{"id":"d05_02","title":"幻境中的旧人","weight":11,"once":true,"cond":{"realmMin":2,"realmMax":6},"text":"入定的第三日，你睁眼看见自己站在一个不该再记得的地方。雨后泥路，路边一座塌了半边的土地庙，庙口蹲着一个人，正低头搓着湿透的草鞋带子。他抬起头，问你当年为什么没回头。天光很亮，亮得你看见他脖颈上那道旧伤。你分明知道这是心魔织的景，可他说这句话时的口型，和记忆里一模一样。","choices":[{"text":"走进去，正面认下当年","effect":{"mind":12,"cult":60,"luck":-3,"flagAdd":["心魔已斩"],"log":"幻境中认下旧债"},"result":"你在泥地里坐下，一五一十地把当年说给他听，说到口干。他听完只笑了笑，草鞋带子始终没系好。等你再抬眼，庙也没了，路也没了，只剩自己盘在蒲团上。心口那块压了很多年的石头，似乎轻了一点。"},{"text":"抬手一剑，劈了幻境","effect":{"cult":120,"mind":-8,"mo":8,"log":"一剑劈碎旧影"},"result":"剑光落处，泥路、土地庙、草鞋带子一齐碎成飞灰。你听见一声极轻的叹息，像是从很远的地方来。洞府里剑痕划进石壁三寸。往后你的剑更快了，可每到雨夜，你总觉得自己还站在那条泥路上。"},{"text":"退出定境，不再看他","effect":{"mo":-10,"mind":5,"cult":-40,"log":"避过心魔一劫"},"result":"你收神出定，把这段景当作战场上的烟，散了就是散了。之后数日你于定中再未见过他。有人问你闭关如何，你说一般。只有你自己知道，你是绕着走的，绕得比当年那一步还要快。"}]},{"id":"d05_03","title":"仇人跪在你面前","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":6},"text":"你把他从废墟里拎出来时，他肋骨断了三根，还在笑。三年前他带人屠了你待过的那座小镇，连药庐里煎药的炉子都砸了。如今他被自己的门派弃了，跪在焦土上，说只想求个痛快。风把灰吹到你靴面上，很轻。你抬起的手掌里，真元已经聚成一团，暖得像刚出炉的东西。","choices":[{"text":"一掌了结这段旧账","effect":{"cult":100,"mo":15,"fame":-8,"flagAdd":["手染血仇"],"log":"手刃仇人"},"result":"你没有用剑，只一掌按在他天灵上。他的笑没来得及收。焦土上多了一个不深不浅的坑。办完这件事，你回身走了很远才发觉自己一直握着拳。此后你的名声里多了一句评语：此人记仇，且不打算忘。"},{"text":"废他修为，留他一条命","effect":{"cult":60,"mind":10,"fame":15,"mo":-8,"log":"废仇人修为"},"result":"你按住他丹田，把那点修了半生的东西一点一点碾碎。他叫得很难听，你听着听完。末了你说，活着比死长，你慢慢还。他瘫在土里，此后是个凡人。你不觉得自己宽厚，只是不想让他死得那么干净。"},{"text":"松开手，转身就走","effect":{"mind":12,"mo":-10,"fame":-12,"luck":3,"log":"放下旧账"},"result":"你把手里的真元散了，暖意从指缝漏走。他愣在原地，以为你还要回头，你没有。往后数年你偶尔听见他的消息，卖过炭，也讨过饭。你不去打听。放下一桩仇，比报一桩仇要难得多，你算是懂了。"}]},{"id":"d05_04","title":"血祭之法","weight":9,"once":true,"cond":{"realmMin":2,"realmMax":6},"text":"洞府里多了一块玉简，不知是谁塞进来的。玉简里记着一门血祭之法：以活人精血为引，可换一次绝处逢生的境界跃升，写得极详尽，连下刀的角度都标了。你收简时，外头雪下得正紧，山门下的义庄里还押着十一名血煞门战俘，铁链冻在地上，用热水浇才解得开。守庄的弟子冻得直跺脚，正等你一句吩咐。","choices":[{"text":"依玉简行事，取血为引","effect":{"cult":280,"mo":15,"fame":-20,"mind":-10,"flagAdd":["血祭之秘"],"log":"行血祭之法"},"result":"义庄那一夜烧了整整两个时辰的火，火很旺，谁也没敢多问。你的修为确实跃了一层，快得连自己都陌生。玉简被你把玩到起了一层包浆。往后你路过义庄，总要绕开那面墙，尽管墙上什么也没有。"},{"text":"封了玉简，战俘交还","effect":{"fame":20,"mind":8,"mo":-12,"flagAdd":["血祭之秘"],"log":"封简还俘"},"result":"你用宗门封禁把玉简锁进藏经阁最下一层，又把十一名战俘尽数送还血煞门，一个不多一个不少。门中有人骂你迂，你没辩。封禁落下的那一刻，你听见玉简里一声极细的碎裂声，像是里头的东西终于死了。"},{"text":"当众毁简，放人自去","effect":{"fame":10,"luck":6,"cult":-40,"mo":-15,"log":"毁简放俘"},"result":"你当着守庄弟子的面把玉简碾成粉，又开了铁链，任那十一人各自散去。有人回头看你，眼里全是不解。你只说了一句：他们不欠我。那天夜里你入定很浅，梦里却安静。"}]},{"id":"d05_05","title":"镜中人","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":6,"moMin":25},"text":"出关那日你照例净面，铜盆里映出来的人眉目还是你的眉目，只是眼底沉着一线极细的赤色，眨眼便没了。你试着笑了一下，水里的人比你慢半拍才笑。盆边搁着你这三年来修的那门功法的手抄本，纸页翻得起了毛，最后一页写着四个字：魔功大成。窗外同门在喊你去用早饭，声音很近。","choices":[{"text":"认下这条路，继续走","effect":{"cult":240,"mo":15,"mind":-12,"flagAdd":["魔功大成"],"log":"认下魔功之路"},"result":"你把那页纸撕下来烧了，从此不再抄。此后你出手一次比一次快，也一次比一次不像你自己。有回同门被你顺手一击震退，爬起来还替你解释说是你收手不及。你听着，没有纠正。"},{"text":"自缚三日，以清水洗魔性","effect":{"cult":-80,"mo":-14,"mind":12,"lifespan":-30,"log":"自缚洗魔性"},"result":"你封了自己的经脉，在冰泉里坐了三天三夜。第三夜你疼得咬破了嘴唇，水里那点赤色终于散了。修为退了不少，人也虚，可你照镜子时敢多看两眼了。出来时有人递给你一碗热汤，你接得手有点抖。"},{"text":"打碎铜盆，把功法封了","effect":{"cult":-40,"mind":10,"luck":5,"flagDel":["魔功大成"],"log":"碎镜封功"},"result":"铜盆碎在地上，水淌了一地，那本手抄本被你压进石匣、灌了铅，沉进后山潭里。修为停在原地不动了。往后你再没想起过那一页的诀要，只在偶尔做梦时，看见水面上有个人比你慢半拍。"}]},{"id":"d05_06","title":"正道的包围","weight":10,"once":true,"cond":{"realmMin":2,"realmMax":6,"moMin":40},"text":"山门外来了三百余人，打着七家宗门的旗，说近日一桩灭村的血案与你身上的气息同源，请你下山自证。带头的是一位持剑的老修，说话很客气，客气到每一步都算好了。你站在门内，能闻到风里那点铁锈似的味道，确实是从自己身上散出去的，洗过三遍也压不住。门中师兄弟挤在你身后，没人先开口。","choices":[{"text":"开山门，当众自证","effect":{"fame":20,"mind":12,"lifespan":-20,"cult":-60,"log":"当众自证清白"},"result":"你敞开门，解开中衣，让人看清胸口那道被强行压下的黑色脉络。有位丹修上前验了半日，最后拱手说冒犯。三百人退得干干净净。你回身时腿一软，扶着门框站住，没人看见。那点气息从此淡了，代价是你有半年提不起剑。"},{"text":"杀出重围，不与多说","effect":{"cult":200,"mo":15,"fame":-20,"flagAdd":["与正道为敌"],"log":"杀出正道重围"},"result":"你从山门一路打下山，血溅在自己的石阶上。身后有师弟在喊你的名字，喊到第二声就断了。三日后你站在另一条山道上，回头看，七家宗门的旗还在风里，而你已经没有回去的地方了。"},{"text":"自断一脉，换他们退去","effect":{"fame":20,"mo":-15,"cult":-180,"mind":10,"lifespan":-20,"log":"自断魔脉退敌"},"result":"你当众剖开左腕，把那条藏魔气的脉络整根抽了出来，扔在石阶上。血淋淋地跳了两下才死。三百人面面相觑，最后退了。你抱着手腕坐在门槛上，师兄弟围过来，谁都不敢碰你。"}]},{"id":"d05_07","title":"魔道传承","weight":8,"once":true,"cond":{"realmMin":3,"realmMax":6,"moMin":50,"fameMax":200},"text":"你被追到绝壁上时，天已经黑透了。崖底是瘴气，往上是一条窄得只容一人的石缝，追兵的火把在下面连成一条线。石缝里坐着一个人，黑袍，面白得像纸，自称罗睺，说此地是他五百年前的旧居，传承还留着，只问你要不要。他说话时并不看你，只看你身后的火。","choices":[{"text":"接下传承，换一次活路","effect":{"cult":260,"mo":15,"mind":-10,"fame":-20,"flagAdd":["罗睺之传","魔道中人"],"log":"受罗睺传承"},"result":"黑袍人把手按在你额上，一股冰凉的东西顺着脊骨淌下去，走到哪里，哪里的旧伤就好了。追兵的火把在崖下烧了一夜，没敢上来。天亮时石缝里只坐着你一个人，你在心里数了数，自己还剩几分像从前。"},{"text":"拒绝传承，背水一战","effect":{"cult":120,"mind":12,"fame":15,"mo":-12,"luck":-3,"log":"拒传承背水一战"},"result":"你摇头，从石缝里走出来，站在悬崖最外的一块石头上。追兵上来时，你已经把最后一点真元压进了剑里。这一战打到日头偏西，你浑身是伤地站着，他们抬着死人下去。黑袍人始终没再出声。"},{"text":"只借他一线气息脱身","effect":{"mo":10,"cult":90,"fame":-8,"flagAdd":["罗睺之传"],"log":"借魔息脱身"},"result":"你说只要一线，多的不要。他笑了，指间漏出一缕黑气绕上你的脚踝，你借着它从瘴气里滑了下去，落地时连衣角都没破。这一缕气息你后来一直没舍得清。它很轻，却总在半夜里往你心口爬。"}]},{"id":"d05_08","title":"月圆之厄","weight":9,"once":true,"cond":{"realmMin":2,"realmMax":6,"moMin":45},"text":"月亮要圆了。上一次月圆，你在后山咬死了一头鹿，清醒时满嘴是血，旁边还站着两个吓傻了的小弟子。今夜风一起，你觉得指节又开始发痒，牙根压不住地想磨。铁链是早就备好的，挂在屋梁上，另一头在地上拖出一道人形的磨痕。门外有人来送饭，脚步声越来越近。","choices":[{"text":"让同门把自己缚在梁上","effect":{"mind":12,"mo":-12,"fame":15,"cult":-80,"lifespan":-20,"log":"月圆自缚"},"result":"你让人把铁链收紧，锁上三道，钥匙扔到院外。送饭的小弟子吓得一直抖，你还是让他锁了。天亮后你浑身是伤，铁链被咬出两排深痕，但院里的人一个都没伤着。此后他们叫你，声音里多了一点敬。"},{"text":"独自进山，等那一夜过去","effect":{"mo":-8,"cult":120,"luck":-4,"log":"独自入山避月"},"result":"你一个人进了深山，在一处无人的石洞里坐了整夜。醒来时洞壁上全是抓痕，指甲翻了四片。修为反倒涨了些，像是心魔替你练了一夜。你走到溪边洗手，洗了很久。"},{"text":"不管它，凭修为硬扛","effect":{"mo":15,"cult":160,"fame":-12,"luck":-5,"log":"硬扛月圆失控"},"result":"你留在屋里，任那股东西在经脉里冲撞。屋顶被掀了半边，隔壁院墙倒了一堵，两个人挨了你的掌，一个断了腿。第二日你提着药去看，他们摆手说无碍，眼神却总往你手上瞟。"}]},{"id":"d05_09","title":"道心一问","weight":9,"once":true,"cond":{"realmMin":3,"realmMax":6},"text":"入定时你站上一处无水的渡口，水面上浮着一只空船，船头坐着个人，披着蓑衣，看不清脸。他问你修仙到底为了什么，声音很平，不像是在考你。渡口四下寂静，只有船底蹭着水草。你站在那里想了很久，发现自己竟一时答不上来。这念头一起，船就往下沉了一寸。","choices":[{"text":"答：为长生久视","effect":{"cult":200,"mind":6,"luck":3,"lifespan":-10,"log":"答以长生"},"result":"你说要活得更久一些，久到能看尽这世上的春秋。他点点头，把船桨推给你，说那你划吧。你划了很久，水面一直没有对岸。醒来时修为涨了一大截，可你忽然觉得年岁这个东西，比从前沉。"},{"text":"答：为不被人踩在脚下","effect":{"mo":12,"cult":180,"mind":-10,"fame":-10,"log":"答以不被人踩"},"result":"你说得很直，说完自己也愣了。他沉默片刻，笑了一声，说这个答复最省事。蓑衣下伸出来的手往你肩上拍了一下，力道很重。此后你练功比谁都狠，狠到同门敬而远之，你也确实再没被人踩过。"},{"text":"答：为不再看着人死","effect":{"mind":12,"mo":-12,"cult":100,"fame":10,"log":"答以护人"},"result":"你说完这句，船忽然平了。他把蓑衣掀开一角，底下空无一人，只有一船的月光。醒来时你坐在蒲团上，眼眶有点热。此后你出手总先看旁人，慢半分，却再没走岔过道心。"}]},{"id":"d05_10","title":"魔气救人","weight":9,"once":true,"cond":{"realmMin":2,"realmMax":6,"moMin":20},"text":"山道上躺着一个人，是邻村送药的少年，被妖兽的爪子掏开了半边肩膀，血已经流得不快。你身边没有丹，最近的药庐在四十里外，而你的掌心里有一门走得极快的法子，只是那条黑色的气一入人体，从此就洗不干净了。少年的手还抓着一只空药篮，篮底漏了个洞。他看了你一眼，很安静。","choices":[{"text":"以魔气封脉，先救活他","effect":{"mo":12,"fame":15,"mind":5,"cult":-40,"log":"以魔气救少年"},"result":"黑气从你掌心钻进他的伤口，血立刻止住了。他醒来第一句话是问药送到了没有。你把他背回村里，转身时听见他在后头小声说谢谢。此后你偶尔会收到一篮不知谁放的野果，果子上总带着一点土。"},{"text":"以寿元换他一线生机","effect":{"lifespan":-30,"mind":10,"fame":20,"mo":-8,"log":"舍寿元救少年"},"result":"你把手按在他心口，一寸一寸把自己的生机渡过去。渡完你坐在地上站了很久才起来，鬓角白了一小片。他活下来了，养了三个月又能挑药筐。你说不出这笔买卖值不值。"},{"text":"先封他伤口，再背去药庐","effect":{"cult":-80,"fame":10,"mind":6,"mo":-5,"luck":4,"log":"负伤行四十里"},"result":"你用最笨的法子压住他的血，背起来就跑。四十里山路，你跑到鞋底开了胶，到了药庐人已经说不出话。他活下来了，你的修为误了一截，可那天夜里你睡得极沉，什么梦都没有。"}]},{"id":"d05_11","title":"仇家上门","weight":10,"once":true,"cond":{"realmMin":1,"realmMax":6},"text":"来人一身血色的护腕，自称血煞门执事，说你三年前在渭水边折了他一个师弟，今日特来讨个说法。他说这话时，一只手正按在你家小院的柴门上，指下那块旧门板裂了一道缝。院里你娘正在蒸馍，隔着窗子喊你进来吃饭。门外的雪化了三成，泥地踩上去很软。","choices":[{"text":"出村十里，与他了断","effect":{"cult":160,"mo":12,"fame":-10,"flagAdd":["血煞门之仇"],"log":"杀血煞门执事"},"result":"你把他引到村外十里的乱葬岗。半个时辰后你一个人回来，袖口沾了些洗不掉的东西。当夜你连夜把家搬走，没跟娘说清缘由，只说换个地方住。此后血煞门的名录上多了你一笔。"},{"text":"认下旧账，卸他一条手臂","effect":{"cult":80,"mind":8,"fame":12,"lifespan":-10,"flagAdd":["血煞门之仇"],"log":"自罚一臂平仇"},"result":"你先递上自己的左臂让他砍一刀，再卸了他一条手臂，两清了。他走的时候脸色很难看，什么也没说。你回屋吃饭，娘问你手怎么在滴血，你说切菜。饭还是热的。"},{"text":"当场拿下，押去宗门换赏","effect":{"fame":18,"contribution":40,"cult":60,"wealth":150,"flagAdd":["血煞门之仇"],"log":"生擒血煞门执事"},"result":"你只用了三招就把他按在自家门槛上，用的是剑背。宗门来人验过血煞门的腰牌，赏了你一笔灵石。消息传得快，仇家的仇家也记下了你。"},{"text":"放他走，记下这笔账","effect":{"mind":6,"luck":4,"fame":-15,"flagAdd":["血煞门之仇"],"log":"纵仇家归山"},"result":"你说今日不便，让他改日再来。他走得很快，临走回头看了你家屋顶一眼，那一眼让你后颈发凉。村里人说你怂，你没解释。你只是连夜磨了一遍剑。"}]},{"id":"d05_12","title":"同门之死","weight":10,"once":true,"cond":{"realmMin":1,"realmMax":6,"sect":["青云剑宗","丹霞谷","天音阁","万魔殿","散修联盟","合欢宗"]},"text":"戒律堂的钟敲了三下，你被押到堂前。后山溪涧里捞上来一具尸首，是与你同批入门的师弟，喉间一道剑伤，深浅正合你惯用的那一式。那夜你独自出过山门，无人作证。堂上三位长老坐着，堂下挤满了人。你看见苏婉儿站在最前面，嘴唇动了动，没敢出声。","choices":[{"text":"呈出那夜的药方自证","effect":{"fame":15,"mind":8,"cult":-60,"flagAdd":["洗清嫌疑"],"log":"以药方自证"},"result":"你从怀里摸出一张揉皱的药方，是那夜去镇上给江晚舟抓的。药铺的伙计被请来对了笔迹。堂上静了很久，最后长老挥手让你退下。你走出戒律堂时腿有些软。真正的凶手，还在山上。"},{"text":"不辩，等他们自己查","effect":{"fame":-10,"mind":10,"contribution":-30,"lifespan":-20,"flagAdd":["洗清嫌疑"],"log":"自请禁闭待查"},"result":"你说查就是了，我等你查清。你把佩剑解下来放在堂上，自己去了思过崖。三月后真凶落网，是外门一个借你招式栽赃的人。长老亲自来崖上接你，你瘦了一圈，看人的眼神比以前静。"},{"text":"出剑逼开众人，独走","effect":{"sectLeave":true,"mo":12,"fame":-20,"cult":120,"flagAdd":["叛出宗门"],"log":"剑逼戒律堂"},"result":"你拔剑在堂前画了一道线，说谁过线谁死，然后一步不退地走了出去。身后有人在骂，有人在哭。你下山时回头望了一眼山门上的匾，看了很久，还是走了。"}]},{"id":"d05_13","title":"灭门之夜","weight":9,"once":true,"cond":{"realmMin":1,"realmMax":6,"flagAny":["血煞门之仇","罗睺之传","魔道中人","与正道为敌","手染血仇"]},"text":"火光是从东厢烧起来的，血煞门的人来得又快又静。你在烟里摸回内院，只来得及踹开一扇门。左边屋里是苏婉儿，被梁柱压住了一条腿，正咬着牙不出声；右边是江晚舟，伤得重，已经昏过去了。门槛上的火苗正在往上舔。你只有一次进出的功夫，身后的脚步声已经很近了。","choices":[{"text":"背起苏婉儿冲出去","effect":{"rel":{"苏婉儿":25},"cult":-40,"fame":10,"mind":-8,"lifespan":-20,"flagAdd":["灭门余生"],"log":"火中救出苏婉儿"},"result":"你把她从梁下拖出来背上，一路上她的指甲掐进你肩膀。冲到院外时你回头看了一眼，右厢的屋顶已经塌了。此后很多年，她见你都笑得很大声，只有提到那一夜的时候不笑。"},{"text":"背起江晚舟冲出去","effect":{"rel":{"江晚舟":25},"cult":-40,"fame":10,"mind":-8,"lifespan":-20,"flagAdd":["灭门余生"],"log":"火中救出江晚舟"},"result":"你把他架在肩上时他还在发烫，一路没醒。出了火场你跪在地上替他拍背，他咳出一口黑烟。后来他给你煎了三年的药，从不提那一夜。你也从不敢问另一间屋里的事。"},{"text":"先灭火，两个都试一次","effect":{"fame":20,"lifespan":-30,"cult":-120,"luck":5,"flagAdd":["灭门余生"],"log":"火中往返两趟"},"result":"你以真元震塌半面墙隔断火势，先拖出苏婉儿，再折回去把江晚舟抱了出来，衣角烧掉了半幅。人是都活了，你的气海被火烧过一次，从此再没满过。你坐在焦土上，手一直抖。"}]},{"id":"d05_14","title":"断臂之厄","weight":8,"once":true,"cond":{"realmMin":2,"realmMax":6,"flagAll":["血煞门之仇"]},"text":"血煞门的追兵把你堵在断崖上的石洞里，洞口的护山符已经烧到最后一张。你左臂被一记血刃削开，骨头露了出来，血在脚下积成一小滩。对方的首领在外头喊话，说只要你把当年那个执事的人头交出来，其余不问。你怀里揣着半块冷馍，是出门时苏婉儿塞的。洞外火把的光一晃一晃，照在你左臂白骨上，白得刺眼。","choices":[{"text":"自断左臂，从后崖走","effect":{"lifespan":-20,"fame":-10,"cult":-100,"mind":12,"flagAdd":["断臂"],"log":"自断左臂逃生"},"result":"你一口咬住剑柄，把左臂齐肘斩了，血喷在崖壁上。后崖是一条只有山羊走的路，你单手攀了一夜。天亮时你在溪边洗伤口，水是红的。断口愈合后你试着再握剑，握了三个月才握稳。"},{"text":"死守洞口，等他们进来","effect":{"death":"力竭战死于断崖石洞","lifespan":-10,"fame":12,"log":"断崖死战"},"result":"符烧完的那一刻，你把剑横在洞口。对方涌进来的时候你数了数，一共十一个。你换掉了四个，剩下的七个费了很久才把你按住。你最后看见的是洞顶那线天光。"},{"text":"吞丹强提，杀出一条路","effect":{"cult":60,"mo":12,"lifespan":-30,"fame":-8,"luck":-4,"flagAdd":["断臂"],"log":"强提修为突围"},"result":"你把最后一颗保命丹整颗咬碎吞了，药力烧得你耳朵嗡嗡响。你从洞口一路杀到山下，左臂是保住了，人是废了一半，此后每到阴雨，整条手臂都使不上劲。"}]},{"id":"d05_15","title":"寿元将尽","weight":8,"once":true,"cond":{"realmMin":2,"realmMax":6},"text":"你在铜镜里数自己新添的白发，数到第七根的时候停住了。手边那本内视的册子上写得清楚：寿元将尽，余者不过数载。窗外桃树是你亲手栽的，今年开得比往年都早。案上放着三样东西：一味燃寿续命的猛药，一枚能稳住气海的旧丹，还有一封没写完的信，写给一个你很久没见的人。","choices":[{"text":"燃尽余年，强冲一层境界","effect":{"cult":300,"lifespan":-30,"mind":-10,"mo":10,"flagAdd":["燃寿冲关"],"log":"燃寿冲关"},"result":"你把猛药含在舌下，任那点生机烧成冲关的柴。境界确实过了，你出关那天桃花全落了。剩下的日子不多，但足够你把剑再练得更狠一点。铜镜里的白发，你没再数过。"},{"text":"服旧丹养神，不再强求","effect":{"mind":12,"mo":-12,"cult":-80,"luck":5,"log":"服丹养神"},"result":"你服了那枚旧丹，把猛药倒进了炉子里。此后你每日扫院、煮茶、看桃树，气海虽未满，人却前所未有的松。有人说你认命了，你笑笑，把没写完的信接着写完了。"},{"text":"把余下几年全教给弟子","effect":{"fame":20,"contribution":60,"mind":8,"cult":-40,"lifespan":-20,"log":"传道授业"},"result":"你把内外两门的功课从头讲了一遍，讲到第三个月，膝下跪了十七个人。你把自己走过的弯路一条条画在地上，画得满院子都是。第二年春天，有两个孩子过了你卡了很多年的那道关。"}]},{"id":"d05_16","title":"替人挡下","weight":9,"once":true,"cond":{"realmMin":2,"realmMax":6},"text":"斗法打到第三轮，对面那记黑砂是冲沈青霜去的。她正背对着退，剑势收不回来，肩胛上那道旧伤还露在外头。你离她三步，离退路五步。看台上人声嘈杂，宗门大比的旗子被风扯得笔直。你右手里还捏着一半没用完的符，那东西能护住自己一次。黑砂的破空声已经很近了。","choices":[{"text":"侧身挡下这一记","effect":{"rel":{"沈青霜":25},"fame":20,"lifespan":-20,"cult":-60,"flagAdd":["护道之谊"],"log":"替沈青霜挡砂"},"result":"黑砂尽数打在你左肋上，你退了两步没倒，血从嘴角压不住地往下淌。她回身扶住你，手很凉，只说了一句“记下了”。此后她练剑时再多留一分力，是替你留的。"},{"text":"推她一把，自己退开","effect":{"rel":{"沈青霜":15},"fame":5,"cult":40,"luck":3,"log":"推她闪过黑砂"},"result":"你抢上一步把她推开，自己借着反力侧翻出去，黑砂擦着你的衣角钉进石台。她落地后看了你一眼，什么也没说，下一轮把对面那人的剑打落在地。这一眼你记了很久。"},{"text":"以符自保，任她挨这一记","effect":{"cult":80,"fame":-20,"mind":-12,"rel":{"沈青霜":-20},"log":"看台上袖手"},"result":"你捏碎了符，黑砂在你身前半尺散了。沈青霜被扫下擂台，肋骨断了三根，抬下去时没看任何人。赢是赢了，看台上的嘘声你听得清楚。此后宗门里提起你，总要先停顿一下。"}]},{"id":"d05_17","title":"宗门危难","weight":8,"once":true,"cond":{"realmMin":2,"realmMax":6,"sect":["青云剑宗","丹霞谷","天音阁","万魔殿","散修联盟","合欢宗"]},"text":"山门钟自鸣，这是护山大阵被破的讯号。血煞门的人顺着后山的裂缝摸了上来，前殿已经烧起来了。传功长老站在演武场上分派：年轻弟子护着藏经阁往北撤，留下的要顶住山门。你看见苏婉儿抱着两卷经书往后山跑，跑一步回一次头。也有人已经翻墙走了，翻得很快，没人拦。","choices":[{"text":"守山门，与长老并肩","effect":{"death":"守山门不退，与阵同碎","contribution":80,"fame":20,"log":"守山门殉道"},"result":"你把剑插在山门正中，站在那一道线上没有退。长老在你左边倒下的时候，你还在挥剑。护山大阵最后一线灵光散尽，门楼上那块匾砸了下来。"},{"text":"护着藏经阁先走","effect":{"contribution":60,"fame":15,"cult":-80,"lifespan":-20,"flagAdd":["护经之功"],"log":"背经卷走北道"},"result":"你把苏婉儿怀里的经卷接过来背在身上，一路砍断了两处索桥，赶在天亮前把人和书都带到了北道的别院。山门丢了，可藏经阁一卷没少。清点的时候你才发现自己后背上插着一支断箭。"},{"text":"散掉修为，震退来敌","effect":{"cult":-200,"fame":20,"mind":8,"contribution":30,"lifespan":-20,"log":"散功退敌"},"result":"你把半生修为压在掌上，一掌拍在断龙石上。石碎、阵起、血煞门的人被生生逼退三里。你自己跌坐在碎石里，气海空得发疼。此后你还是那个你，只是出手时要先看对方几眼。"},{"text":"趁乱脱身，独自下山","effect":{"sectLeave":true,"fame":-20,"mo":8,"wealth":200,"luck":4,"log":"乱中下山"},"result":"你从西边的狗洞钻了出去，走的时候怀里多了些原本不属于你的东西。山在身后烧了三天。三年后你路过此地，山门重修了，匾是新的，守门的不认得你，还是叫你一声道友。"}]},{"id":"d05_18","title":"识海之争","weight":8,"once":true,"cond":{"realmMin":3,"realmMax":6},"text":"你入定读到一半经，忽然发现自己坐在一片灰白的水面上，四周没有边际。对面站着一个人，穿着你的衣服，长着你的脸，只是说话的语气比你慢。他说这具身子他借住得挺舒服，问你介不介意。你手腕上那串本命珠在灰白里找不到一点光。水面上浮着你用过的东西：断了的剑穗、烧掉的信、半块冷馍。","choices":[{"text":"以道心将他困在识海","effect":{"mind":-8,"cult":220,"mo":8,"flagAdd":["识海有痕"],"log":"识海镇夺舍者"},"result":"你在识海里与他纠缠了七天七夜，最后把他按进最底下那层。他挣不脱，就骂你，骂得很难听。你出来时修为涨了，人也沉了。此后你偶尔会在不认得的路上，想起一些不是你的事。"},{"text":"让出一角，引他入瓮","effect":{"cult":120,"mo":12,"mind":-5,"flagAdd":["识海有痕"],"log":"诱斩夺舍之魂"},"result":"你故意在识海里留了一道缝，引他钻进当年天音阁镇魂曲的残篇。等他明白过来，曲子已经响了。他散得很干净，连一句狠话都没留下。你收功时手指冰凉，像是刚从深水里捞出来。"},{"text":"与他谈，各让一半","effect":{"mo":15,"cult":250,"fame":-10,"lifespan":-20,"flagAdd":["识海有痕"],"log":"与夺舍者共处"},"result":"你们谈了很久，最后定下各据一半。他的见识确实比你的老，很多东西他一点你就通。只是从那天起，你笑的时候总要慢半拍，像是先问了谁一句。"}]},{"id":"d05_19","title":"旧人之叛","weight":9,"once":true,"cond":{"realmMin":2,"realmMax":6},"text":"那笔灵石是你交给他保管的，数目不小，是三年攒下的宗门赏。今日你去看，匣子还在，锁也完好，里头空了。他没跑，还在原处等你，坐在门槛上擦手。他说他妹妹要换一条命，价钱正好是这个数。他说完抬眼看你，眼睛很红，一只手还按着那只空匣子，像是怕它飞了。","choices":[{"text":"当众揭破，送他去戒律堂","effect":{"fame":15,"mind":6,"cult":-40,"lifespan":-10,"wealth":-80,"log":"揭破旧人之叛"},"result":"你把空匣子拎到戒律堂前，一句话没说。他被拖走时没有看你。那笔灵石追不回来了，你倒贴了八十去堵他妹妹的窟窿。有人说你狠，也有人说你软，两边都不算错。"},{"text":"把证据烧了，让他自己看","effect":{"fame":-5,"mind":10,"rel":{"顾长歌":12},"log":"烧掉证据"},"result":"你当着他的面把账册投进炉子，火苗窜起来，映着他一张惨白的脸。你只说了一句：下次别找我。他后来把那笔灵石连本带利还了两回。你收了第一回，第二回退回去了。"},{"text":"假装不知，反过来设局","effect":{"cult":160,"mo":12,"mind":-10,"fame":8,"log":"设局反用旧人"},"result":"你什么也没提，还多给了他一份差事。半年后那个局收网，牵连出三个吃里爬外的人。他跪在你面前磕头，磕出血来了。你让他起来，说以后办事小心些。"}]},{"id":"d05_20","title":"天劫提前","weight":7,"once":true,"cond":{"realmMin":3,"realmMax":6},"text":"云是午时开始压下来的，到了傍晚，整座山都暗了下去。你翻遍丹房，护劫的符阵还差三成没布完，几味主药也断在市集上，一直没到。第一道紫雷落下来的时候，你才想起自己选的日子原本在三个月后。师兄弟被赶出了三里之外。风里已经有烧焦的味道。","choices":[{"text":"以魔念引开主雷","effect":{"mo":15,"cult":220,"luck":-5,"lifespan":-20,"flagAdd":["雷劫余伤"],"log":"魔念引雷"},"result":"你把心口那点黑色的东西逼出来，迎着第三道雷抛上去。雷在半空炸开，把整片林子烧成焦炭。你活下来了，代价是自此之后，你的气息里多了一点连自己都闻得出的味道。"},{"text":"散掉一半修为，卸去劫力","effect":{"cult":-200,"lifespan":-30,"mind":10,"fame":-5,"log":"散功卸劫"},"result":"你把自己的修为撕下一半扔进雷云里，像是扔出一块肉喂狗。剩下的雷落在身上时已经轻了很多。劫过了，你坐在焦土上，看着自己一双发抖的手，境界退回了三年前。"},{"text":"开识海，以身承雷","effect":{"death":"硬承九雷，形神俱灭","mind":12,"fame":15,"log":"以身承雷"},"result":"你解开所有禁制，把神念整个敞在雷云底下。第九道雷落下时，山巅的石头都化成了琉璃。有人后来说，那一夜天上亮得像白天，照了整整一炷香。"}]},{"id":"d05_21","title":"旧识求救","weight":9,"once":true,"cond":{"realmMin":2,"realmMax":6,"flagAny":["血煞门之仇","断臂","灭门余生","护道之谊","识海有痕","燃寿冲关"]},"text":"白芷是跪着进来的，膝盖在石阶上磨出了血。她中了一种慢毒，毒已入骨，丹霞谷的师长恰好不在，能配出解药的那味引子只有你手里有。而你正在冲关的最要紧一段，气机刚聚起来，中间断了就不知要等到哪年。她就跪在洞府外，一声不吭，雪落在她肩上也不拍。","choices":[{"text":"为她镇毒，误了这次冲关","effect":{"cult":-160,"lifespan":-20,"mind":10,"fame":15,"rel":{"白芷":25},"log":"废关为白芷镇毒"},"result":"你收功出关，把她扶进丹房，用真元一寸寸替她逼毒，逼了五天。毒是压住了，你的气机全散了。她醒来以后在你案上留了一张方子，说这个能补回来一点。方子你用了三年。"},{"text":"给她引子，让她去别处","effect":{"cult":100,"fame":5,"mind":-5,"rel":{"白芷":10},"log":"赠引子而未出关"},"result":"你把引子从门缝里递了出去，说了句去城里找姓孟的老医。她接了，磕了个头，自己站起来走了。你重新入定，气机接上了，只是那一段怎么都不如先前圆。"},{"text":"关门，说这次不救","effect":{"cult":200,"fame":-20,"mind":-12,"rel":{"白芷":-30},"log":"闭门不救白芷"},"result":"你说了一句关我何事，石门落了下来。外头很久没有声音，再开门时雪地上只剩两个膝盖的印子。这一关你冲得极顺。此后你偶尔听说她的消息，都隔得很远。"}]},{"id":"d06_01","title":"礁上观海","weight":10,"once":true,"cond":{"realmMin":4,"realmMax":6},"text":"东海尽头有一块孤礁，退潮时才露出来。你踏水过去，坐了整整一夜。浪一层压一层，从看不见的地方来，往看不见的地方去，声音连成一条线，不响，只是不停。子时前后你忽然分不清潮声和心跳，也分不清哪一层浪是自己。天将亮时你回过神，衣裳没湿，礁石上落了一层薄盐，白得像霜。你没有起身，因为起不来——道心在那一刻松了，像有什么东西正从缝里长出来。","choices":[{"text":"任它长，坐到潮水漫膝","effect":{"cult":220,"mind":14,"lifespan":-20,"rel":{"苏婉儿":-8,"顾长歌":-8},"log":"礁上坐忘"},"result":"潮水漫过膝，漫过腰，你没有动。这一坐不知多少日夜，你只记得睁眼时礁石已被磨低半尺，而丹田里那片海，第一次和外面那片对上了。回山那天，苏婉儿在门口等你，欲言又止，最后只说了一句：你好像不太记得我们的事了。你确实记不清她上次笑是什么模样。"},{"text":"以减法镇住这份感悟","effect":{"cult":160,"mind":6,"lifespan":30,"luck":-4,"log":"舍五感镇道"},"result":"你自封五感，只留一线，把那一夜的潮声压成心头一枚种子。压得住，是因为你亲手剪掉了它伸出去的根。此后你听得见百里外的剑鸣，却在满城人声里觉得四面都是空的。寿元补回来了，那份天地一体的痛快，你再没尝到第二回。"},{"text":"把这一夜刻成文字","effect":{"cult":300,"mind":-4,"fame":30,"lifespan":-10,"log":"字成道隐"},"result":"你用剑尖在礁石上刻字，刻了三千余言，潮水一次次抹平，你一次次重刻。第七日字终于立住，围观的散修越聚越多，有人当场叩头认之为师。你名声大噪，可等你回头再望那片海，它只是海了。写出来的道，留给了别人。"}]},{"id":"d06_02","title":"天雷淬体","weight":10,"once":true,"cond":{"realmMin":4,"realmMax":6},"text":"北荒有一处叫落雷原的地方，三百里无树无石，地平得像被谁一掌抹过。每年惊蛰，云从四面压下来，雷不打天，只打地。你脱了外袍，赤足走进去，踩到的土是暖的。第一道电光落下时你才知道，那不是疼，是一种把人从里面翻过来的力道。真元在头顶炸开，骨头在皮肉里响。你站住了，也跪下了，两种状态同时发生。","choices":[{"text":"散了护体真元，硬受九道","effect":{"cult":450,"lifespan":-90,"mind":6,"mo":4,"log":"落雷原受九道"},"result":"九道雷，你数得很清楚，因为每数一道就少一分力气。第九道落下时你整个人陷进土里半尺，浑身焦黑，经脉却像被人用铁锤一寸寸重新砸直了。你爬出来时雷云已经散了，衣裳早没了，只有一对眼珠亮得吓人。寿元去了八十年，这副肉身却从此比金石更硬。"},{"text":"引雷入地，护住方圆百里","effect":{"cult":200,"fame":40,"lifespan":-30,"wealth":-300,"log":"引雷护落雷原"},"result":"你把真元插进地里，做了一根最蠢也最稳的避雷针。雷顺着你走，绕开了远处那片牧民的帐篷。事后他们抬了整年的牛羊来谢你，你收下了三头。经脉被反冲震裂三道，你养了十七年。声望传得很远，落雷原此后每逢惊蛰，有人会替你点一炷香。"},{"text":"借雷光炼一炉器","effect":{"cult":260,"wealth":600,"luck":-6,"log":"雷中成器"},"result":"你在雷口上摆开炉子，用天雷当炭火。器成的那一刻，落雷原静了整整一炷香，像天在替你让路。那柄东西后来卖出了极高的价，买主是万魔殿的人。但从此每逢阴天，你左手的指节都会自己发抖，那是炉子留给你的一笔账。"}]},{"id":"d06_03","title":"识海斩三尸","weight":9,"once":true,"cond":{"realmMin":5,"realmMax":6},"text":"上古典籍说，人体有三尸，盘在识海深处，吃你的执念，也替你看住过去的自己。你闭关第四十日，识海里多出三个人。一个是还没入道的你，蹲在村口数蚂蚁；一个是刚握剑的你，手背上还带着练剑磨的疤；还有一个是白发的你，坐在很高的地方，谁也不看。他们都抬起头，同时在等你动手。剑很轻，落在手里像没有重量。","choices":[{"text":"只斩那个白发的","effect":{"cult":500,"mind":6,"mo":8,"lifespan":-40,"log":"斩未来尸"},"result":"你一剑劈开白发的自己。他散开时笑了笑，说了半句你不想听的话。斩掉的是斤斤计较的那部分，剩下的路确实顺畅了许多。代价是你从此再也看不见很远的东西——不是眼睛，是心里那盏本来照着路的灯，灭了一角。"},{"text":"三尸一个都不留","effect":{"cult":600,"mind":12,"mo":10,"lifespan":-100,"flagDel":["雾中定心","剑冢残锋"],"log":"三尸俱斩"},"result":"三剑，三声，识海里干净得像大雪后的院子。那些旧日的暖意连同软弱的根一起没了，你站起来时稳得不像人。可你后来用了很久才想起，曾经有个名字你一听见就会笑。现在你想不起来了，翻遍记忆只翻到一片雪。"},{"text":"一个都不斩，收剑入鞘","effect":{"cult":200,"mind":10,"mo":-10,"luck":8,"log":"不斩三尸"},"result":"你收了剑，在识海里坐下，跟三个自己说了很久的话。他们最后都散了，不是被你杀散的，是说完就走了。你出关时眉毛白了半截，修为进境远不如旁人传说中斩尸那样快。但心魔从此近不了你的身——一个连自己都不肯杀的人，没什么可被吓的。"}]},{"id":"d06_04","title":"分岔之年","weight":9,"once":true,"cond":{"realmMin":5,"realmMax":6},"text":"一具上古阵盘躺在废墟底下，你揭开封土那一瞬，眼前换了一片天。那是你自己十九岁那年的雨——山道上两条路，你往东走了。现在你站在阵里，看得清清楚楚：往西那条路的尽头，坐着另一个你，正在擦一柄木剑。灶上烧着水，院里有鸡。他抬头看见你，并不惊讶，问你：那边好不好。你答不出来，因为你忽然想不起，那边的自己这三十年，究竟有没有笑过。","choices":[{"text":"在他对面坐下，把话说完","effect":{"cult":240,"mind":16,"lifespan":-30,"wealth":-400,"log":"与分岔对坐"},"result":"你们对坐到天黑，又对坐到天亮。他讲他的鸡和木剑，你讲你的雷和潮。临别你把身上所有灵石都留在了他灶台边，明知道带不走。出来时阵盘碎成粉，你鬓边多了一缕白。有些路不走了，不代表不疼；但说完了，就真的放下了。"},{"text":"抹去这条分岔","effect":{"cult":520,"mind":-6,"luck":-10,"lifespan":-30,"log":"断诸般可能"},"result":"你抬手抹去那道岔路。屋子、灶火、鸡鸣、那个擦木剑的人，一层层淡下去，像墨被人从水里捞走。从此往后你只剩一条路可走，走得极快，快得连如果两个字都追不上你。气运薄了一层，你却不再犹豫——没什么可犹豫的了。"},{"text":"只看一眼，转身就走","effect":{"cult":180,"mind":8,"luck":6,"lifespan":20,"log":"过门不入"},"result":"你看了很久，久到阵盘开始发烫，然后转身出了废墟，一步没回头。那壶水到底有没有烧开，你这辈子都不会知道了。这件事就那么搁着，像袖口里一颗小石子。奇怪的是，此后你运功时格外稳，心里干净，干净得有点空。"}]},{"id":"d06_05","title":"前人遗愿","weight":10,"once":true,"cond":{"realmMin":4,"realmMax":6},"text":"洞府最深处坐着一具尸身，衣裳已经烂尽，脊背还直着。他手上托着一枚玉简，身前青石上刻了一行字，笔画很深，是临死前用指甲刮的：帮我送完这一趟。你拿了玉简才知内容——他要把某件东西，从东荒送到极西的一座无名小观，途中要穿过三个仇家的地界。他坐了四百年，没坐化，是活活等到死也没等到一个肯接的人。","choices":[{"text":"接下来，立誓送到","effect":{"cult":300,"lifespan":-100,"fame":30,"mo":-6,"flagAdd":["遗愿在身"],"log":"受前人遗愿"},"result":"你把玉简贴身收好，对着那具尸身行了礼。誓言出口的一瞬，你心口像被系了一根线，另一头拴在极西，拽着你往前走，也拽着你不能回头。此后你数次可以绕开是非，都绕不开。道心反倒稳了——欠着债的人，不容易走歪。"},{"text":"只取玉简，不接因果","effect":{"cult":200,"wealth":500,"luck":-8,"mo":8,"log":"取简不接愿"},"result":"你把玉简里的东西取了出来，确实值钱，转手就换了五百灵石。青石上那行字你没再看第二遍。此后有一段日子你过得极阔，进境也顺。只是每回数灵石，总有一瞬间听见指甲刮石头的声音。声音很小，你一直没告诉别人。"},{"text":"把遗愿转托他人","effect":{"cult":120,"fame":-30,"luck":-4,"flagAdd":["遗愿他托"],"log":"遗愿转托他人"},"result":"你寻了一个年轻散修，把玉简和原委一并交了，又给了他一笔路费。他答应得很痛快，后来也确实去了。这件事在你名下算清了，你落了个清静。只是江湖上渐渐有了一种说法：当年那位前辈找过你，你没接。这话你解释不清，也不打算解释。"}]},{"id":"d06_06","title":"开宗立派","weight":8,"once":true,"cond":{"realmMin":5,"realmMax":6},"text":"合道在即，你在云间得了一座无主洞府。山门一开，自有祥云盘绕，门后瀑布如练，正是立道统的地方。名录摆上案头，第一笔要落的是门规。玄虚道人蹲在门槛上啃果子，含糊地问：你打算收些什么人，教他们些什么东西。这句话你其实想过很多年，只是从前一直没有资格想。","choices":[{"text":"立门规：同门不许相残","effect":{"cult":260,"fame":50,"mind":8,"wealth":-500,"rel":{"沈青霜":10,"白芷":8},"log":"立派立仁规"},"result":"你把第一条写死：同门相残者，逐，永不复用。写的时候你想起一些旧事，笔尖顿了三顿。此后拜山的人多，走的人也多，山门清苦，库里的灵石总不够用。可每到深夜，你听见的回声是齐的，没有刀出鞘的声音。这条规，日后救过你的命。"},{"text":"立门规：强者居上座","effect":{"cult":400,"fame":20,"mo":10,"mind":-6,"rel":{"姜雪璃":8,"苏婉儿":-6},"log":"立派立强规"},"result":"你把规矩写成一句：能者上，不能者让。三年之内，你门下的弟子修为涨得比哪一家都快，快得让人眼红。第四年冬，山门里死了两个弟子，都是死在自家人手上。你把那条规矩留在原处没改，只是把自己关了三日。门里从此人人自危，人人拼命。"},{"text":"不立门规，只挂一块无字匾","effect":{"cult":200,"luck":10,"fame":-20,"wealth":300,"mo":-8,"log":"无字匾下立派"},"result":"匾是空的，规矩是各人的良心。来的人少，留下的人更少，但留下来的几个，你都记得住名字。山门冷清，账上倒一直有钱——不养闲人，也不必防谁。有人说你立派如儿戏，你不辩。若干年后有人翻遍你门下名册，发现人数不多，却也没出过一个叛徒。"}]},{"id":"d06_07","title":"当众论道","weight":9,"once":true,"cond":{"realmMin":4,"realmMax":6},"text":"论道大会摆在昆仑旧址，六家都到了。台子三丈高，谁站上去谁就得把道说清楚，说不清的当场被人问下来，从此抬不起头。青云剑宗的老剑修先问，丹霞谷的谷主接着问，天音阁的女修问得最软也最刁。你站上去时台下坐满了人，姜雪璃在最后排，不看你。风把台上的幡吹得直响，你开不了口，因为所有眼睛都在等你先认输。","choices":[{"text":"直说自己的道，不引经据典","effect":{"cult":320,"fame":50,"mind":8,"mo":6,"log":"论道直说己道"},"result":"你说得很短，短到有人以为是怯场。你说完，台下静了片刻，老剑修第一个站起来拱手。此后多年，这段话被人反复引用、反复篡改，连你自己都认不出原样。姜雪璃散场时才看你一眼，眼神里有别的东西。你把那份心思压下去了。"},{"text":"借三家之说，说得滴水不漏","effect":{"cult":280,"fame":30,"wealth":400,"mind":-6,"log":"论道借人成说"},"result":"你把剑宗的刚、丹霞的缓、天音的空各取一截，拼成一套谁都挑不出错的道理。台上人人点头，台下有人递帖子请你去做客卿，定金给得很足。你收下了。回洞府的路上，你忽然想不起自己原话是什么。这个问题你想了很多年，一直没想出答案。"},{"text":"把台子让给别人，只在台下听","effect":{"cult":160,"mind":14,"fame":-20,"luck":6,"log":"论道让台听人"},"result":"你退下台，在人群里找了个角落坐下，从早听到晚，一句没插。别人当你是心虚，你也不恼。那天你听懂了六家真正的短处，比台上任何一人都多。多年后有人问你那次为何不上台，你说：台子那么小，站着的人看不见自己。"}]},{"id":"d06_08","title":"受封道号","weight":10,"once":true,"cond":{"realmMin":4,"realmMax":6},"text":"道号不是你求来的。三山五湖的修士联名递了帖子，说该给你一个称呼，否则往后连拜帖都不知怎么写。帖子上的字很客气，末尾那句话却不客气：这道号一受，天下事就都与你有关了。玄虚道人把帖子翻过来看了看背面，说背面什么也没有。他年轻时大概也受过一回，只是从没跟你提过。","choices":[{"text":"受了道号，从此有名有姓","effect":{"fame":200,"cult":200,"mind":-4,"age":6,"lifespan":-20,"log":"受封道号"},"result":"道号一传出去，拜山的人从山脚排到半山。你从此没有一日是自己过的——有人求药，有人求剑，有人只求你说一句公道话。修为涨得比从前快，因为天下灵气都愿意往有名字的地方流。可你也再没办法一个人走夜路了，总有人跟着。"},{"text":"辞了道号，只留姓名","effect":{"fame":80,"mind":10,"luck":8,"cult":120,"wealth":-200,"log":"辞道号留姓名"},"result":"你把帖子原封退回，附了一封短笺：叫我名字就行。这一退，反而有人更高看你，送来的礼你一概不收，又得罪了几个。你过了几年真正清静的日子，走路不必回头，坐下不必看门。代价是有人替你起了绰号，比道号难听得多。"},{"text":"让给同门，自己不领","effect":{"fame":-20,"mind":6,"cult":150,"rel":{"顾长歌":12,"沈青霜":10},"log":"让号与同门"},"result":"你说这道号该给更该得的人。话传出去，落在同门身上，他推辞了两回，到底受了。此后他在明，你在暗，许多麻烦拦在他那边。他替你挡下不止一次。你欠他的这份，后来是用别的方式还的——还的时候你已经很老了。"}]},{"id":"d06_09","title":"第一道天雷","weight":10,"once":true,"cond":{"realmMin":6,"realmMax":6},"text":"你渡劫那日，天是铅灰的，没有风。云层压到山头那么低，云里亮了一下，又灭了，像有人在里面挑灯。第一道天雷落下来之前，你听见极远处有钟声，只一声。方圆百里的飞鸟全部贴地，草木朝你这边弯。同行护法的修士退到十里之外，说这一道最强，能过就能过，过不去就没有第二句。你抬头，那道白光刚好把天分成两半。","choices":[{"text":"迎上去，不避不让","effect":{"cult":600,"fame":40,"mo":8,"lifespan":-60,"death":"第一道天雷之下，形神俱灭","log":"硬抗第一道天雷"},"result":"雷穿身而过，你半边身子瞬间没了知觉。你确实接住了——真元在剧痛里拧成一股从未有过的形状。你在半空停了三息才落地，落地时手指还插在土里。远处护法的人跪了一片。这道雷替你改了一条经脉的走向，也烧掉了你大半寿元。"},{"text":"分雷入地，殃及山林","effect":{"cult":420,"fame":-30,"luck":-12,"lifespan":-20,"mo":6,"log":"分雷毁一山"},"result":"你把雷劈成八股引向四周，山保不住，方圆四十里的松林烧成了炭。火里埋着两户采药的人家，你后来一家一家找过去，赔了三年的灵石。修为是护住了，气运薄得像一层纸。此后你每逢经过焦土，都绕路走，因为焦味会让你想起那一声钟。"},{"text":"以禁法吞雷，代天行罚","effect":{"cult":520,"mo":15,"mind":-8,"wealth":800,"lifespan":-120,"log":"吞雷代天罚"},"result":"你用了上古的吞雷禁法，把第一道天雷咽了下去。咽下去的东西不老实，此后每逢雨夜，你胸腹里就有雷在走。修为与灵石来得太快，快到有人开始怕你。你自己也怕——照镜子时，眼白偶尔会亮一下，像要下雨。"}]},{"id":"d06_10","title":"天门洞开","weight":10,"once":true,"cond":{"realmMin":6,"realmMax":6},"text":"第九道天雷散尽，天没有晴，反而裂开一道口子。门后很亮，亮得没有深浅，也没有声音。你站在门下抬头看，看了很久才看清：那片亮里有什么东西在看回来。它不巨大，也不丑陋，只是非常平静，平静得像在看一件迟早要归位的东西。全天下都在等你抬脚，你自己也知道，这一步抬起来就再也放不下了。","choices":[{"text":"抬脚入门，不问门后","effect":{"cult":600,"realm":7,"fame":100,"lifespan":200,"rel":{"苏婉儿":-20,"沈青霜":-20,"顾长歌":-20},"log":"登天门去"},"result":"你抬脚的那一刻，身后所有声音都断了——风声、人声、剑鸣，全断在半空。门里没有路，走进去就是路。你不知道自己要去哪里，只知道回头已经找不到回去的方向了。人间那些名字，一个也没能带上来。"},{"text":"抬手，把门按下","effect":{"cult":400,"mind":14,"luck":-8,"lifespan":-40,"fame":-40,"flagAdd":["闭天门"],"log":"按落天门闭"},"result":"你举掌按在天门边上，像按住一扇要撞开的风门。掌心裂了三道口子，血是金色的。门缓缓合上，那东西一直看着你，直到最后一道细缝消失。全天下骂你不识抬举，你回山门睡了整整一年。醒来时风还是风，雨还是雨。"},{"text":"在门下问一句：里面可有故人","effect":{"cult":260,"mind":8,"mo":8,"lifespan":-60,"luck":4,"log":"门下问故人"},"result":"你问了一句。门里没有回答，只是亮了一下——很轻的一下，像是有人应了。你站在那里把半生的名字念了一遍，念到一半就念不下去了。天门最后自己合上，留了一道细缝在你眉心，此后你看人，总比别人多看见一层影子。"}]},{"id":"d06_11","title":"雨夜收徒","weight":10,"once":true,"cond":{"realmMin":5,"realmMax":6},"text":"雨下到第三日，你洞府外的石阶上跪着一个人。是个少年，瘦得只剩骨头，膝盖底下的水是红的，已经跪了不知多久。他不要灵石，也不要丹药，只求一个名字一个去处。他说家里六口人，如今剩他一个，他不想白活。你看着他，忽然想起自己当年也是这样站在某道门槛外的，只是那年没有人开门。","choices":[{"text":"收下，从头教起","effect":{"fame":20,"mind":10,"cult":260,"wealth":-400,"rel":{"苏婉儿":-3},"log":"雨夜收徒"},"result":"你把他带进门，先给了一碗热的。教了三年，他才知道自己天资平平，练得比谁都苦。第十年他第一次替你挡下一剑，肩膀上留了道疤。你看着他长大，也看着他开始替你操心。教人这件事，最耗的是自己那点时间，而时间你最缺。"},{"text":"给他一部功法，不收入门墙","effect":{"fame":10,"cult":150,"mind":-4,"luck":6,"log":"赐功不留人"},"result":"你抄了一部中平功法给他，又指了条路，叫他去散修联盟讨口饭吃。他磕了三个头走了，走得很快。多年后你在别处见到他，他做了别人的师兄，见了你只称一声前辈。你心里空了一下，随即觉得也好——有些线不牵，就不会断。"},{"text":"给他灵石，让他下山去","effect":{"cult":320,"wealth":-600,"mind":-8,"luck":-6,"log":"雨夜予金遣人"},"result":"你数了一笔不算少的灵石给他，说够了，回去买块地。他接了，鞠了一躬，下了山。你关上门接着闭关，那一年进境极快，快得连雨都忘了听。后来听说有人在赌坊里见过他，输光了所有，再后来就没了消息。你从没跟人提过这件事。"}]},{"id":"d06_12","title":"故人皆老","weight":10,"once":true,"cond":{"realmMin":4,"realmMax":6},"text":"你回乡那年，村口那棵槐树没了。你记得它有三抱粗。原来的位置立了一块碑，碑上写的是修路的功德，落款里有几个你认得的名字。你走进巷子，没有人认得你，一个孩子仰头问你：仙长是来收租的吗。你站在自家的旧院墙外，墙矮了，或者是你高了。屋里有人在咳嗽，那声音老得听不出是谁。你在门口站了很久，没有敲门。","choices":[{"text":"只留一袋灵石，不留姓名","effect":{"mind":12,"luck":6,"wealth":-800,"lifespan":-10,"log":"归乡留金去"},"result":"你把灵石放在门槛内侧，摆得很整齐，像怕人不知道是谁来过，又像怕人知道。走出巷口时你听见有人推门，你没有回头。这一趟你没有见到任何人，却在回去的路上把少年时所有的事都想起来了一遍，清清楚楚。此后你运功，心里再没有堵着的地方。"},{"text":"敲开门，自报姓名","effect":{"mind":8,"cult":220,"fame":20,"lifespan":-30,"rel":{"白芷":-6},"log":"归乡认门"},"result":"门开了，出来的是个你不认识的老妇。你报上名字，她愣了很久，才想起许多年前巷子里确实有过这么一个人。话说到后来都是些琐事，米价、雨水、谁家孩子进了城。你替他们留下一笔钱和一部不入流的养生功法。走的时候，老妇喊了你的小名。"},{"text":"替全村迁走，另辟新村","effect":{"cult":280,"fame":40,"wealth":-2000,"luck":-6,"lifespan":-40,"log":"迁一村另立"},"result":"你动用修士的手段，一夜之间把整村的人和屋搬去了三十里外的水边，连井都重打了一口。新村长年无灾，米粮丰足。只是从此这地方在地图上没了名字，县志里也查不到。你要改的东西太多，改完之后，那条巷子就只剩你一个人记得了。"}]},{"id":"d06_13","title":"生死了断","weight":10,"once":true,"cond":{"realmMin":6,"realmMax":6,"flagAny":["受封道号","遗愿在身","闭天门","立派立仁规","遗愿他托","雾中定心","三尸俱斩","不斩三尸","剑冢残锋"]},"text":"你最后一次出关，山门外等着一个人。血煞老祖没带随从，站在雪里的样子像个驼背的老头；若是万魔殿的罗睺，就穿着灰袍子，手插在袖里，像个走错路的货郎。两人说话都是同一个意思：你的因果里有他们一笔。这笔账从你炼气那年就记下了，如今到了该结的时候。雪下得很安静，你听见自己的心跳，一下，一下，不多。","choices":[{"text":"以全盛之势，与之正面了断","effect":{"cult":600,"fame":60,"mind":10,"mo":6,"lifespan":-150,"death":"了断因果之际，力竭身殒","log":"正面了断因果"},"result":"你把这一生所有的修为都推到最前面，第一击就把半座山削平了。雪被烧成了雾。你们从黄昏打到天亮，胜负在你最后一口气的边上分开。他倒下去的时候你也没能站住。你伤到的地方，此后每逢下雪都会疼，但因果确实清了，干干净净。"},{"text":"舍去百年寿元，一击定局","effect":{"cult":450,"fame":30,"mind":8,"mo":-6,"lifespan":-100,"flagAdd":["因果已了"],"log":"舍寿了断因果"},"result":"你把寿元烧成真元，只求一击。那一击之后，天地都静了片刻。你站着，他也没有倒——只是从此再没有出现过。你回到洞府，白了头，眉毛也白了。有人问你这笔账结得值不值，你说：能用岁数买的东西，都不算贵。"},{"text":"放手让他这笔账记下去","effect":{"cult":200,"mind":-10,"mo":15,"luck":-8,"lifespan":60,"log":"任账未了"},"result":"你收了手，说这笔账你留着，往后我什么时候想还再还。他盯了你很久，最后转身走进雪里。你保住了寿元，也保住了一条命，可此后的每一夜你都得留一半心防着他。魔念疯长，进境快得吓人，你照镜子时偶尔会认不出自己的眼神。"}]}]}</script>
+<script>
+/* ==========================================================================
+ * 修仙模拟器 · 核心逻辑（纯逻辑，不碰 DOM，可被 Node 直接引入做平衡测试）
+ * ========================================================================== */
+
+const REALM_NAMES = ['凡体', '炼气', '筑基', '金丹', '元婴', '化神', '渡劫', '飞升'];
+const REALM_LIFESPAN = [90, 120, 200, 400, 800, 1500, 3000, 999999];
+
+/** 全部平衡参数集中在这里，方便 tools/simulate.mjs 做参数扫描 */
+const TUNING = {
+  costs: [240, 620, 1150, 1750, 1900, 600, 750],
+  /** 每回合打坐自然积累的修为基数 */
+  passiveBase: 14,
+  /** 每高一个境界，打坐收益增加多少 */
+  passivePerRealm: 16,
+  /** 打坐收益随境界增长的指数：1 为线性，>1 为越到高阶越快 */
+  passiveExp: 1.35,
+  /** 修为受灵根影响的指数：越小，灵根差距对最终成就的影响越温和 */
+  rootExp: 0.7,
+  /** 一局最多经历多少个事件 */
+  turnCap: 48,
+  /** 单次事件最多推进当前境界进度的比例 */
+  cultCapRatio: 0.6
+};
+
+const BREAKTHROUGH_COST = TUNING.costs;
+
+const ROOTS = [
+  { name: '天灵根', mult: 1.75, weight: 2, desc: '万中无一的道种，天地灵气自来投怀' },
+  { name: '变异雷灵根', mult: 1.55, weight: 4, desc: '掌雷，性烈如火，进境极快' },
+  { name: '变异冰灵根', mult: 1.50, weight: 4, desc: '掌冰，心冷眼静，最宜杀伐' },
+  { name: '变异剑灵根', mult: 1.50, weight: 4, desc: '生而带锋，见剑即通' },
+  { name: '单灵根', mult: 1.35, weight: 12, desc: '一系精纯，百年难遇的上等资质' },
+  { name: '双灵根', mult: 1.12, weight: 22, desc: '两系相济，走入内门不算难' },
+  { name: '三灵根', mult: 0.95, weight: 26, desc: '资质平平，够用，也只是够用' },
+  { name: '四灵根', mult: 0.82, weight: 18, desc: '杂而不精，得比别人多下三倍苦功' },
+  { name: '五灵根', mult: 0.70, weight: 10, desc: '世人谓之伪灵根，修仙路上的一根草' }
+];
+
+const ORIGINS = [
+  { name: '山村孤儿', weight: 18, luck: 5, mind: 8, wealth: 0, fame: 0, mo: 0, desc: '父母死于一场不知名的瘟疫，你被村人轮流养大。', flags: ['乡野出身'] },
+  { name: '没落世家子', weight: 14, luck: 0, mind: 5, wealth: 30, fame: 5, mo: 0, desc: '祖上出过金丹，如今只剩一座漏雨的老宅。', flags: ['旧族遗脉'] },
+  { name: '官宦子弟', weight: 12, luck: 0, mind: -5, wealth: 60, fame: 10, mo: 0, desc: '锦衣玉食，却从没自己做过一次决定。', flags: [] },
+  { name: '商贾之子', weight: 12, luck: 6, mind: -3, wealth: 90, fame: 0, mo: 0, desc: '家里开着三间铺子，你五岁就会看人脸色。', flags: [] },
+  { name: '药农之子', weight: 12, luck: 3, mind: 6, wealth: 10, fame: 0, mo: 0, desc: '跟着爹在山里认了十年草，能闻出药性。', flags: ['识得百草'] },
+  { name: '弃婴，被老道收养', weight: 8, luck: 8, mind: 10, wealth: 0, fame: 0, mo: 0, desc: '一个邋遢老道在雪地里把你捡回了破观。', flags: ['玄虚门人'] },
+  { name: '边军之后', weight: 10, luck: -3, mind: 4, wealth: 5, fame: 3, mo: 0, desc: '父亲死在北境，留下的刀比你人还高。', flags: ['将门血性'] },
+  { name: '皇族旁支', weight: 4, luck: -5, mind: -8, wealth: 150, fame: 25, mo: 0, desc: '姓着国姓，却排不上族谱第三页。', flags: ['天家血脉'] },
+  { name: '街头乞儿', weight: 10, luck: 10, mind: 6, wealth: -5, fame: 0, mo: 0, desc: '你在城里活了十一年，靠的是眼力和快腿。', flags: ['市井混大'] }
+];
+
+const SECT_NAMES = ['青云剑宗', '丹霞谷', '天音阁', '万魔殿', '散修联盟', '合欢宗'];
+
+/* ------------------------------------------------------------------ 结局 --- */
+
+const ENDINGS = {
+  fallen: { id: 'fallen', name: '陨落', tier: '死亡', seal: '殁', color: '#6a6a6a', judge: '道途止于半山' },
+  mortal: { id: 'mortal', name: '平民人生', tier: '平民', seal: '凡', color: '#8a7a63', judge: '来过，活过，然后归于尘土' },
+  longlife: { id: 'longlife', name: '凡人长寿', tier: '长寿', seal: '寿', color: '#6f8b6a', judge: '一辈子没修出什么名堂，却活得很长' },
+  common: { id: 'common', name: '正常人生', tier: '正常', seal: '道', color: '#5a7a9a', judge: '有一番修行，也有一场归宿' },
+  demon: { id: 'demon', name: '天魔人生', tier: '魔道', seal: '魔', color: '#7a3b4a', judge: '走到极高处，只是那人已不再是你' },
+  power: { id: 'power', name: '爽文人生', tier: '爽文', seal: '仙', color: '#9a7b2f', judge: '从泥里一路杀到天门之前' }
+};
+
+function honorTitle(s) {
+  const r = s.realm;
+  if (s.mo >= 65 && r >= 4) return r >= 6 ? '万魔之尊' : '血海魔君';
+  switch (r) {
+    case 0: return '山野凡人';
+    case 1: return '炼气散修';
+    case 2: return s.sect ? '外门筑基' : '筑基野修';
+    case 3: return '金丹真人';
+    case 4: return '元婴老祖';
+    case 5: return '化神大能';
+    case 6: return '渡劫真仙';
+    default: return '飞升仙尊';
+  }
+}
+
+/** 结算：返回 { endingId, title, verdict } */
+function judge(s, opts) {
+  opts = opts || {};
+  const ascended = !!opts.ascended || s.realm >= 7;
+  let id;
+  if (s.deathCause) {
+    id = 'fallen';
+  } else if (ascended) {
+    id = s.mo >= 55 ? 'demon' : 'power';
+  } else if (s.mo >= 70 && s.realm >= 3) {
+    id = 'demon';
+  } else if (s.realm >= 5 || (s.realm >= 4 && s.fame >= 250)) {
+    id = 'power';
+  } else if (s.realm >= 3) {
+    id = 'common';
+  } else if (s.realm >= 2 && s.age >= 130) {
+    id = 'longlife';
+  } else {
+    id = 'mortal';
+  }
+  let title;
+  if (id === 'fallen') {
+    title = '身死道消';
+  } else if (id === 'longlife') {
+    title = s.age >= 180 ? '百岁山民' : '一世凡人';
+  } else if (id === 'mortal') {
+    title = s.realm >= 2 ? '碌碌小修' : (s.age >= 80 ? '一世凡人' : '半途而废');
+  } else {
+    title = honorTitle(s);
+  }
+  const e = ENDINGS[id];
+  return { endingId: id, title, verdict: e.judge };
+}
+
+/* ---------------------------------------------------------------- 成就 --- */
+
+const ACHIEVEMENTS = [
+  { id: 'a_first', name: '初入仙途', desc: '第一次踏入炼气' },
+  { id: 'a_root_top', name: '灵根天骄', desc: '测出天灵根' },
+  { id: 'a_root_low', name: '五行俱全', desc: '测出五灵根' },
+  { id: 'a_sect', name: '有宗可依', desc: '拜入六大宗门之一' },
+  { id: 'a_six', name: '六道皆历', desc: '六家宗门全都待过（跨周目累计）' },
+  { id: 'a_fame', name: '名动一方', desc: '声望达到 300' },
+  { id: 'a_rich', name: '富甲一方', desc: '灵石超过 1000' },
+  { id: 'a_gold', name: '金丹大道', desc: '结成金丹' },
+  { id: 'a_baby', name: '元婴出窍', desc: '破入元婴' },
+  { id: 'a_spirit', name: '化神之境', desc: '踏入化神' },
+  { id: 'a_tribu', name: '渡劫临身', desc: '步入渡劫' },
+  { id: 'a_ascend', name: '白日飞升', desc: '破开天门，飞升而去' },
+  { id: 'a_partner', name: '道侣在侧', desc: '与人结为道侣' },
+  { id: 'a_alone', name: '孤身问道', desc: '未结道侣而达化神' },
+  { id: 'a_demon', name: '一念成魔', desc: '魔念达到 80' },
+  { id: 'a_save', name: '悬崖勒马', desc: '魔念曾过 60，最终压回 20 以下' },
+  { id: 'a_long', name: '长命百岁', desc: '活到一百岁' },
+  { id: 'a_die', name: '身死道消', desc: '死在了路上' },
+  { id: 'a_mortal_end', name: '平凡一生', desc: '得到「平民人生」结局' },
+  { id: 'a_power_end', name: '爽文主角', desc: '得到「爽文人生」结局' },
+  { id: 'a_demon_end', name: '魔道至尊', desc: '得到「天魔人生」结局' },
+  { id: 'a_long_end', name: '人瑞', desc: '得到「凡人长寿」结局' },
+  { id: 'a_kind', name: '道心澄明', desc: '结局时道心不低于 80' },
+  { id: 'a_iron', name: '杀伐果断', desc: '结局时魔念不低于 60 且未堕魔' }
+];
+
+/* -------------------------------------------------------------- 工具 --- */
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const ri = (rng, a, b) => a + Math.floor(rng() * (b - a + 1));
+
+function weightedPick(list, rng) {
+  let total = 0;
+  for (const it of list) total += it.weight;
+  let r = rng() * total;
+  for (const it of list) {
+    r -= it.weight;
+    if (r <= 0) return it;
+  }
+  return list[list.length - 1];
+}
+
+function condMatch(c, s, turn) {
+  if (!c) return true;
+  if (c.realmMin != null && s.realm < c.realmMin) return false;
+  if (c.realmMax != null && s.realm > c.realmMax) return false;
+  if (c.gender && s.gender !== c.gender) return false;
+  if (c.noSect && s.sect) return false;
+  if (c.sect && !c.sect.includes(s.sect || '无')) return false;
+  if (c.luckMin != null && s.luck < c.luckMin) return false;
+  if (c.luckMax != null && s.luck > c.luckMax) return false;
+  if (c.mindMin != null && s.mind < c.mindMin) return false;
+  if (c.mindMax != null && s.mind > c.mindMax) return false;
+  if (c.moMin != null && s.mo < c.moMin) return false;
+  if (c.moMax != null && s.mo > c.moMax) return false;
+  if (c.fameMin != null && s.fame < c.fameMin) return false;
+  if (c.fameMax != null && s.fame > c.fameMax) return false;
+  if (c.ageMin != null && s.age < c.ageMin) return false;
+  if (c.ageMax != null && s.age > c.ageMax) return false;
+  if (c.cultMin != null && s.cult < c.cultMin) return false;
+  if (c.flagAll && !c.flagAll.every(f => s.flags.includes(f))) return false;
+  if (c.flagAny && !c.flagAny.some(f => s.flags.includes(f))) return false;
+  if (c.flagNone && c.flagNone.some(f => s.flags.includes(f))) return false;
+  if (c.turnMin != null && turn < c.turnMin) return false;
+  if (c.turnMax != null && turn > c.turnMax) return false;
+  return true;
+}
+
+/* -------------------------------------------------- 修为增益的软上限 --- */
+/** 单次事件最多推进当前境界进度的一部分，避免一个事件直接跳过一整个大境界 */
+function cultGain(s, raw, rootPower) {
+  if (raw <= 0) return raw;
+  const cap = Math.max(80, Math.round(BREAKTHROUGH_COST[s.realm] * TUNING.cultCapRatio));
+  return Math.min(Math.round(raw * rootPower), cap);
+}
+
+/** 每回合天然而然的进境（时间流逝带来的积累） */
+function passiveGain(s) {
+  const base = TUNING.passiveBase + TUNING.passivePerRealm * Math.pow(s.realm, TUNING.passiveExp);
+  return Math.round(base * Math.pow(s.rootMult, TUNING.rootExp));
+}
+
+function rootPower(s) {
+  return Math.pow(s.rootMult, TUNING.rootExp);
+}
+
+function applyEffect(s, eff, rng, notes) {
+  if (!eff) return notes;
+  const push = (label, v) => { if (v) notes.push({ label, v }); };
+
+  if (eff.cult) {
+    const g = cultGain(s, eff.cult, rootPower(s));
+    s.cult = Math.max(0, s.cult + g);
+    push('修为', g);
+  }
+  if (eff.luck) { s.luck = clamp(s.luck + eff.luck, 0, 100); push('气运', eff.luck); }
+  if (eff.mind) { s.mind = clamp(s.mind + eff.mind, 0, 100); push('道心', eff.mind); }
+  if (eff.mo) { s.mo = clamp(s.mo + eff.mo, 0, 100); if (s.mo > (s.moPeak || 0)) s.moPeak = s.mo; push('魔念', eff.mo); }
+  if (eff.fame) { s.fame = Math.max(0, s.fame + eff.fame); push('声望', eff.fame); }
+  if (eff.wealth) { s.wealth += eff.wealth; push('灵石', eff.wealth); }
+  if (eff.lifespan) { s.lifespan = Math.max(s.age + 1, s.lifespan + eff.lifespan); push('寿元', eff.lifespan); }
+  if (eff.contribution) { s.contribution = Math.max(0, s.contribution + eff.contribution); push('宗门贡献', eff.contribution); }
+  if (eff.flagAdd) for (const f of eff.flagAdd) if (!s.flags.includes(f)) s.flags.push(f);
+  if (eff.flagDel) s.flags = s.flags.filter(f => !eff.flagDel.includes(f));
+  if (eff.rel) {
+    s.rels = s.rels || {};
+    for (const k of Object.keys(eff.rel)) {
+      s.rels[k] = clamp((s.rels[k] || 0) + eff.rel[k], 0, 100);
+      push(k, eff.rel[k]);
+    }
+  }
+  if (eff.partner) { s.partner = eff.partner; s.flags.push('已结道侣'); notes.push({ label: '道侣', text: eff.partner }); }
+  if (eff.sectJoin) { s.sect = eff.sectJoin; s.flags.push('已入宗门'); notes.push({ label: '宗门', text: eff.sectJoin }); }
+  if (eff.sectLeave) { s.sect = null; s.contribution = 0; notes.push({ label: '宗门', text: '离宗' }); }
+  if (eff.realm != null && eff.realm > s.realm) {
+    s.realm = eff.realm;
+    s.lifespan = Math.max(s.lifespan, REALM_LIFESPAN[s.realm]);
+    notes.push({ label: '境界', text: REALM_NAMES[s.realm] });
+  }
+  if (eff.death) s.deathCause = eff.death;
+  return notes;
+}
+
+/* ==================================================================== */
+
+class Game {
+  constructor(events, rng) {
+    this.events = events;
+    this.rng = rng || Math.random;
+    this.reset();
+  }
+
+  reset() {
+    this.s = null;
+    this.seen = {};
+    this.turn = 0;
+    this.chronicle = [];
+    this.current = null;
+    this.lastResult = null;
+    this.over = false;
+    this.ending = null;
+    this.ascended = false;
+    this.rerolled = false;
+    this.log = [];
+  }
+
+  /* --- 开局随机 --- */
+  roll(gender) {
+    const rng = this.rng;
+    const root = weightedPick(ROOTS, rng);
+    const origin = weightedPick(ORIGINS, rng);
+    const age = ri(rng, 12, 16);
+    this.s = {
+      name: '无名',
+      gender: gender || (rng() < 0.5 ? '男' : '女'),
+      origin: origin.name,
+      originDesc: origin.desc,
+      root: root.name,
+      rootMult: root.mult,
+      rootDesc: root.desc,
+      realm: 0,
+      cult: 0,
+      age,
+      lifespan: REALM_LIFESPAN[0],
+      luck: clamp(50 + (origin.luck || 0) + ri(rng, -8, 8), 5, 95),
+      mind: clamp(50 + (origin.mind || 0) + ri(rng, -8, 8), 5, 95),
+      mo: 0,
+      fame: Math.max(0, origin.fame || 0),
+      wealth: origin.wealth || 0,
+      sect: null,
+      contribution: 0,
+      flags: (origin.flags || []).slice(),
+      rels: {},
+      partner: null,
+      deathCause: null,
+      rootName: root.name,
+      originName: origin.name
+    };
+    return this.s;
+  }
+
+  reroll() {
+    if (this.rerolled) return false;
+    this.rerolled = true;
+    return true;
+  }
+
+  /* --- 回合 --- */
+  defaultYears() {
+    const r = this.s.realm;
+    return ri(this.rng, 2, 4) + Math.floor(r * 0.5);
+  }
+
+  pickEvent() {
+    const s = this.s, rng = this.rng;
+    // 关键事件：已入炼气却还没拜宗，优先推择宗
+    if (!s.sect && s.realm >= 1 && !this.seen['d01_13']) {
+      const key = this.events.find(e => e.id === 'd01_13');
+      if (key) return key;
+    }
+    const pool = [];
+    for (const e of this.events) {
+      if (e.once !== false && this.seen[e.id]) continue;
+      if (this.lastEventId === e.id) continue;
+      if (!condMatch(e.cond, s, this.turn + 1)) continue;
+      if (e.cond && e.cond.chance != null && rng() > e.cond.chance) continue;
+      pool.push(e);
+    }
+    if (!pool.length) return this.filler();
+    return weightedPick(pool, rng);
+  }
+
+  filler() {
+    return {
+      id: 'filler_' + (this.turn % 3),
+      title: '静修',
+      once: false,
+      text: '山中无岁月。你在洞府里坐了一段日子，灵气一进一出，如溪水过石。',
+      choices: [
+        { text: '继续闭关', effect: { cultBase: 1 }, result: '你把心思收得更紧了些，修为长了一线。' },
+        { text: '推门出去走走', effect: { luck: 3, cultBase: 0.4 }, result: '山风扑面，你在溪边站了很久，心里松快了些。' }
+      ]
+    };
+  }
+
+  nextEvent() {
+    if (this.over) return null;
+    const ev = this.pickEvent();
+    this.current = ev;
+    this.lastResult = null;
+    this.seen[ev.id] = (this.seen[ev.id] || 0) + 1;
+    this.lastEventId = ev.id;
+    return ev;
+  }
+
+  /** 选择后结算；返回 { result, notes, ended } */
+  choose(index) {
+    const ev = this.current;
+    const s = this.s;
+    const ch = ev.choices[index] || ev.choices[0];
+    let eff = ch.effect || {};
+    const notes = [];
+    let savedText = '';
+
+    // 大难不死：气运足够的人，第一次撞上必死结局会被一缕说不清的东西拽回来
+    if (eff.death && !s.savedOnce && s.luck >= 65) {
+      s.savedOnce = true;
+      eff = Object.assign({}, eff, {
+        death: null,
+        lifespan: (eff.lifespan || 0) - 40,
+        cult: -Math.round(Math.abs(eff.cult || 0) * 0.5),
+        fame: -10,
+        flagAdd: (eff.flagAdd || []).concat(['大难不死'])
+      });
+      savedText = '\n\n【大难不死】你本该断在这里。可有一缕说不清的东西把你从死地里拽了出来——只是这一次机会，你已经用掉了。';
+    }
+
+    // 岁月本身的积累
+    const pg = passiveGain(s);
+    if (pg > 0) { s.cult += pg; }
+
+    // 静修类事件的修为随境界水涨船高
+    if (eff.cultBase != null) {
+      const step = TUNING.passiveBase + TUNING.passivePerRealm * Math.pow(s.realm, TUNING.passiveExp);
+      const raw = Math.round(eff.cultBase * step * 1.6 * rootPower(s));
+      applyEffect(s, Object.assign({}, eff, { cult: raw, cultBase: undefined }), this.rng, notes);
+    } else {
+      applyEffect(s, eff, this.rng, notes);
+    }
+    if (pg > 0) notes.unshift({ label: '岁月积累', v: pg });
+
+    this.chronicle.push({ age: s.age, event: ev.title, choice: ch.text, log: eff.log || '' });
+
+    const years = eff.age != null ? eff.age : this.defaultYears();
+    s.age += Math.max(0, years);
+    s.age = Math.round(s.age);
+    this.turn++;
+
+    this.lastResult = { result: ch.result + savedText, notes };
+
+    if (s.deathCause) {
+      this.chronicle.push({ age: s.age, event: '陨落', choice: s.deathCause, log: s.deathCause });
+      this.finish(false);
+    } else if (s.realm >= 7) {
+      this.ascended = true;
+      this.finish(true);
+    } else if (s.age >= s.lifespan) {
+      this.finish(false, '寿元耗尽');
+    } else if (this.turn >= TUNING.turnCap) {
+      this.finish(false, '大限将至');
+    }
+    return { result: this.lastResult, ended: this.over };
+  }
+
+  canBreakthrough() {
+    const s = this.s;
+    return !this.over && s.realm <= 6 && s.cult >= BREAKTHROUGH_COST[s.realm];
+  }
+
+  breakthroughChance() {
+    const s = this.s;
+    // 化神之后是应天劫：每一道都难过，失败要拿寿元去填
+    const heaven = s.realm >= 5 ? 0.22 : 0;
+    let p = 0.40 + s.mind / 280 + s.luck / 400 + (s.rootMult - 1) * 0.15 - s.mo / 260 - s.realm * 0.05 - heaven;
+    return clamp(p, 0.08, 0.93);
+  }
+
+  /** 突破会消耗一个回合 */
+  breakthrough() {
+    const s = this.s;
+    const cost = BREAKTHROUGH_COST[s.realm];
+    const p = this.breakthroughChance();
+    const ok = this.rng() < p;
+    const notes = [];
+    let text;
+    if (ok) {
+      s.cult = Math.max(0, s.cult - cost);
+      s.realm += 1;
+      s.fame += 8 * s.realm;
+      s.lifespan = Math.max(s.lifespan, REALM_LIFESPAN[s.realm]);
+      text = '灵气自百会灌入，周身经脉一齐轰鸣——你破了' + REALM_NAMES[s.realm] + '。';
+      notes.push({ label: '境界', text: REALM_NAMES[s.realm] });
+      notes.push({ label: '寿元上限', v: REALM_LIFESPAN[s.realm] - REALM_LIFESPAN[s.realm - 1] });
+      this.chronicle.push({ age: s.age, event: '突破', choice: '破入' + REALM_NAMES[s.realm], log: '破入' + REALM_NAMES[s.realm] });
+    } else {
+      const bad = this.rng() < 0.3;
+      s.cult = Math.round(s.cult * (bad ? 0.55 : 0.75));
+      s.lifespan = Math.max(s.age + 1, s.lifespan - (bad ? 30 : 12));
+      s.mo = clamp(s.mo + (bad ? 12 : 5), 0, 100);
+      s.mind = clamp(s.mind - (bad ? 8 : 3), 0, 100);
+      text = bad
+        ? '真气冲关不成，反噬而上，你一口血喷在蒲团上，经脉里像有针在走。'
+        : '只差一线。灵气在关口上散了，你睁开眼，天已经亮了三次。';
+      notes.push({ label: '修为', v: -Math.round(cost * 0.25) });
+      notes.push({ label: '魔念', v: bad ? 12 : 5 });
+      this.chronicle.push({ age: s.age, event: '突破失败', choice: bad ? '走火入魔' : '冲关未成', log: bad ? '冲关反噬' : '冲关未成' });
+    }
+    s.age += this.defaultYears();
+    this.turn++;
+    s.cult += passiveGain(s);
+    this.lastResult = { result: text, notes };
+    if (s.age >= s.lifespan) this.finish(false, '寿元耗尽');
+    else if (this.turn >= TUNING.turnCap) this.finish(false, '大限将至');
+    return { result: this.lastResult, ended: this.over };
+  }
+
+  finished() { return this.over; }
+
+  finish(ascended, reason) {
+    this.over = true;
+    const j = judge(this.s, { ascended: ascended || this.ascended });
+    this.ending = Object.assign({}, j, { reason: reason || (this.s.deathCause || '') });
+  }
+
+  /** 汇总本局达成的成就 id（跨周目统计由外层负责） */
+  runAchievements() {
+    const s = this.s, out = [];
+    const has = id => out.push(id);
+    if (s.realm >= 1) has('a_first');
+    if (s.root === '天灵根') has('a_root_top');
+    if (s.root === '五灵根') has('a_root_low');
+    if (s.sect) has('a_sect');
+    if (s.fame >= 300) has('a_fame');
+    if (s.wealth >= 1000) has('a_rich');
+    if (s.realm >= 3) has('a_gold');
+    if (s.realm >= 4) has('a_baby');
+    if (s.realm >= 5) has('a_spirit');
+    if (s.realm >= 6) has('a_tribu');
+    if (this.ascended) has('a_ascend');
+    if (s.partner) has('a_partner');
+    if (!s.partner && s.realm >= 5) has('a_alone');
+    if (s.mo >= 80) has('a_demon');
+    if ((s.moPeak || 0) >= 60 && s.mo < 20) has('a_save');
+    if (s.age >= 100) has('a_long');
+    if (s.deathCause) has('a_die');
+    if (this.ending) {
+      if (this.ending.endingId === 'mortal') has('a_mortal_end');
+      if (this.ending.endingId === 'power') has('a_power_end');
+      if (this.ending.endingId === 'demon') has('a_demon_end');
+      if (this.ending.endingId === 'longlife') has('a_long_end');
+    }
+    if (s.mind >= 80) has('a_kind');
+    if (s.mo >= 60 && s.mo < 70) has('a_iron');
+    return out;
+  }
+}
+
+function createGame(events, rng) { return new Game(events, rng); }
+
+/** 供模拟器使用的简易可复现随机数 */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+
+/* ===== 界面层 ===== */
+
+/* ==========================================================================
+ * 修仙模拟器 · 界面与存档层
+ * ========================================================================== */
+
+(function () {
+  'use strict';
+
+  var DATA = JSON.parse(document.getElementById('game-data').textContent);
+  var EVENTS = DATA.events;
+  var SAVE_KEY = 'xiuxian.v1';
+  var GAME = null;
+  var RNG = Math.random;
+
+  /* ------------------------------------------------------------ 存档 --- */
+
+  var profile = { endings: {}, achs: {}, sects: [], runs: 0, wins: {} };
+
+  function loadProfile() {
+    try {
+      var raw = localStorage.getItem(SAVE_KEY);
+      if (raw) {
+        var o = JSON.parse(raw);
+        if (o && o.profile) {
+          profile = Object.assign(profile, o.profile);
+          profile.sects = profile.sects || [];
+        }
+      }
+    } catch (e) { /* 忽略 */ }
+  }
+  function saveProfile() {
+    try {
+      var o = readRaw() || {};
+      o.profile = profile;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(o));
+    } catch (e) { }
+  }
+  function readRaw() {
+    try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function saveRun() {
+    if (!GAME || !GAME.s) return;
+    try {
+      var o = readRaw() || {};
+      o.run = {
+        s: GAME.s, seen: GAME.seen, turn: GAME.turn, chronicle: GAME.chronicle,
+        over: GAME.over, ending: GAME.ending, ascended: GAME.ascended,
+        rerolled: GAME.rerolled, lastEventId: GAME.lastEventId || null,
+        currentId: GAME.current ? GAME.current.id : null
+      };
+      o.profile = profile;
+      localStorage.setItem(SAVE_KEY, JSON.stringify(o));
+    } catch (e) { }
+  }
+  function clearRun() {
+    try {
+      var o = readRaw();
+      if (o) { delete o.run; localStorage.setItem(SAVE_KEY, JSON.stringify(o)); }
+    } catch (e) { }
+  }
+
+  /* ------------------------------------------------------------ 工具 --- */
+
+  function $(id) { return document.getElementById(id); }
+  function show(id) {
+    var list = document.querySelectorAll('.screen');
+    for (var i = 0; i < list.length; i++) list[i].classList.remove('on');
+    $(id).classList.add('on');
+    window.scrollTo(0, 0);
+  }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function sign(n) { return (n > 0 ? '+' : '') + n; }
+
+  /* --------------------------------------------------------- 墨点粒子 --- */
+
+  function inkFall() {
+    var box = $('inkfall');
+    var n = window.innerWidth < 420 ? 12 : 18;
+    var html = '';
+    for (var i = 0; i < n; i++) {
+      var size = (2 + Math.random() * 6).toFixed(1);
+      html += '<i style="left:' + (Math.random() * 100).toFixed(1) + 'vw;width:' + size + 'px;height:' + size +
+        'px;animation-duration:' + (11 + Math.random() * 14).toFixed(1) + 's;animation-delay:-' +
+        (Math.random() * 20).toFixed(1) + 's"></i>';
+    }
+    box.innerHTML = html;
+  }
+
+  /* --------------------------------------------------------- 打字机 --- */
+
+  var typer = null;
+  function typewriter(el, text, done) {
+    if (typer) { clearInterval(typer.timer); typer = null; }
+    el.innerHTML = '';
+    var i = 0;
+    var span = document.createElement('span');
+    var cur = document.createElement('span');
+    cur.className = 'cursor';
+    cur.textContent = '｜';
+    el.appendChild(span);
+    el.appendChild(cur);
+    var speed = window.innerWidth < 420 ? 22 : 18;
+    var state = { timer: null };
+    typer = state;
+    state.skip = function () {
+      clearInterval(state.timer);
+      span.textContent = text;
+      cur.remove();
+      typer = null;
+      if (done) done();
+    };
+    state.timer = setInterval(function () {
+      i += 2;
+      span.textContent = text.slice(0, i);
+      if (i >= text.length) {
+        clearInterval(state.timer);
+        cur.remove();
+        typer = null;
+        if (done) done();
+      }
+    }, speed);
+  }
+  function skipTyping() { if (typer) { typer.skip(); return true; } return false; }
+
+  /* --------------------------------------------------------- 属性面板 --- */
+
+  function hudHTML(s) {
+    var cost = BREAKTHROUGH_COST[s.realm] || 1;
+    var pct = s.realm >= 7 ? 100 : Math.min(100, Math.round(s.cult / cost * 100));
+    var chips = [];
+    chips.push('<span class="chip"><b>灵根</b>' + esc(s.root) + '</span>');
+    chips.push('<span class="chip"><b>出身</b>' + esc(s.origin) + '</span>');
+    chips.push('<span class="chip"><b>气运</b>' + s.luck + '</span>');
+    chips.push('<span class="chip"><b>道心</b>' + s.mind + '</span>');
+    if (s.mo > 0) chips.push('<span class="chip warn"><b>魔念</b>' + s.mo + '</span>');
+    chips.push('<span class="chip"><b>声望</b>' + s.fame + '</span>');
+    chips.push('<span class="chip"><b>灵石</b>' + s.wealth + '</span>');
+    if (s.sect) chips.push('<span class="chip"><b>宗门</b>' + esc(s.sect) + (s.contribution ? '·' + s.contribution : '') + '</span>');
+    else chips.push('<span class="chip"><b>宗门</b>无</span>');
+    if (s.partner) chips.push('<span class="chip"><b>道侣</b>' + esc(s.partner) + '</span>');
+    var rels = s.rels || {};
+    for (var k in rels) {
+      if (rels[k] >= 40) chips.push('<span class="chip"><b>' + esc(k) + '</b>' + rels[k] + '</span>');
+    }
+    return '' +
+      '<div class="hud-top">' +
+      '<span class="hud-name">' + esc(s.name) + '</span>' +
+      '<span class="hud-realm">' + REALM_NAMES[s.realm] + '</span>' +
+      '<span class="hud-age">' + s.age + ' 岁 · 寿元 ' + (s.lifespan >= 99999 ? '无尽' : s.lifespan) + '</span>' +
+      '</div>' +
+      (s.realm >= 7 ? '' : '<div class="cultbar"><i style="width:' + pct + '%"></i></div>') +
+      '<div class="chips">' + chips.join('') + '</div>';
+  }
+
+  function renderHUD() {
+    $('hud').innerHTML = hudHTML(GAME.s);
+  }
+
+  /* ------------------------------------------------------------ 流程 --- */
+
+  function boot() {
+    loadProfile();
+    inkFall();
+    bindTitle();
+    var raw = readRaw();
+    if (raw && raw.run && !raw.run.over) {
+      $('btn-continue').style.display = 'block';
+      $('continue-info').textContent = raw.run.s.name + ' · ' + REALM_NAMES[raw.run.s.realm] + ' · ' + raw.run.s.age + ' 岁';
+      $('continue-info').style.display = 'block';
+    }
+    if (Object.keys(profile.endings).length) {
+      $('btn-gallery').style.display = 'block';
+    }
+    $('stat-line').textContent = profile.runs
+      ? '已修行 ' + profile.runs + ' 世 · 已解锁结局 ' + Object.keys(profile.endings).length + ' / 6'
+      : '一世一轮回，结局六种';
+  }
+
+  var gender = '男';
+  function bindTitle() {
+    $('btn-male').onclick = function () { gender = '男'; $('btn-male').classList.add('sel'); $('btn-female').classList.remove('sel'); };
+    $('btn-female').onclick = function () { gender = '女'; $('btn-female').classList.add('sel'); $('btn-male').classList.remove('sel'); };
+    $('btn-start').onclick = function () {
+      var nm = ($('name-input').value || '').trim();
+      if (!nm) { toast('请先取一个名字'); return; }
+      if (nm.length > 8) { toast('名字太长，取个短些的'); return; }
+      runAch = {}; endingCounted = false;
+      GAME = new Game(EVENTS, RNG);
+      GAME.roll(gender);
+      GAME.s.name = nm;
+      show('screen-roll');
+      renderRoll();
+    };
+    $('btn-continue').onclick = function () {
+      var raw = readRaw();
+      if (!raw || !raw.run) return;
+      runAch = {}; endingCounted = !!raw.run.over;
+      GAME = new Game(EVENTS, RNG);
+      var r = raw.run;
+      GAME.s = r.s; GAME.seen = r.seen || {}; GAME.turn = r.turn || 0;
+      GAME.chronicle = r.chronicle || []; GAME.over = !!r.over;
+      GAME.ending = r.ending || null; GAME.ascended = !!r.ascended;
+      GAME.rerolled = true; GAME.lastEventId = r.lastEventId || null;
+      if (GAME.over) { renderEnding(); show('screen-ending'); return; }
+      if (r.currentId) {
+        var ev = EVENTS.filter(function (e) { return e.id === r.currentId; })[0];
+        GAME.current = ev || GAME.nextEvent();
+      } else {
+        GAME.nextEvent();
+      }
+      show('screen-game');
+      renderTurn();
+    };
+    $('btn-gallery').onclick = function () { renderGallery(); show('screen-gallery'); };
+    $('btn-gal-back').onclick = function () { boot(); show('screen-title'); };
+    $('btn-share-back').onclick = function () { show('screen-ending'); };
+    $('btn-share').onclick = function () { show('screen-share'); };
+    $('name-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('btn-start').click(); });
+  }
+
+  function renderRoll() {
+    var s = GAME.s;
+    $('roll-root').textContent = s.root;
+    $('roll-root-desc').textContent = s.rootDesc + '（修行速度 ×' + s.rootMult.toFixed(2) + '）';
+    $('roll-origin').textContent = s.origin;
+    $('roll-origin-desc').textContent = s.originDesc;
+    $('roll-age').textContent = s.age + ' 岁 · 气运 ' + s.luck + ' · 道心 ' + s.mind;
+    $('btn-reroll').style.display = GAME.rerolled ? 'none' : 'block';
+    $('reroll-note').textContent = GAME.rerolled ? '命数已定，重来不得。' : '一生只有一次改命的机会。';
+  }
+
+  function bindRoll() {
+    $('btn-reroll').onclick = function () {
+      if (!GAME.reroll()) return;
+      var nm = GAME.s.name, g = GAME.s.gender;
+      GAME.roll(g);
+      GAME.s.name = nm;
+      renderRoll();
+      toast('重开一世');
+    };
+    $('btn-enter').onclick = function () {
+      if (!GAME.rerolled) GAME.rerolled = true;
+      GAME.turn = 0;
+      GAME.nextEvent();
+      show('screen-game');
+      renderTurn();
+    };
+  }
+
+  function renderTurn() {
+    saveRun();
+    renderHUD();
+    var ev = GAME.current;
+    var s = GAME.s;
+    $('event-title').textContent = ev.title;
+    $('event-turn').textContent = '第 ' + (GAME.turn + 1) + ' 事 · ' + s.age + ' 岁';
+    $('choices').innerHTML = '';
+    $('result-box').innerHTML = '';
+    $('result-box').style.display = 'none';
+    $('event-choices').style.display = 'block';
+
+    typewriter($('event-text'), ev.text, function () { buildChoices(ev); });
+
+    var bt = $('btn-breakthrough');
+    if (GAME.canBreakthrough()) {
+      bt.style.display = 'block';
+      bt.textContent = '闭关突破 · 破入' + REALM_NAMES[s.realm + 1] + '（成功率约 ' + Math.round(GAME.breakthroughChance() * 100) + '%）';
+      bt.disabled = false;
+    } else {
+      bt.style.display = 'block';
+      bt.disabled = true;
+      var need = BREAKTHROUGH_COST[s.realm] || 0;
+      bt.textContent = s.realm >= 7 ? '已至飞升之境' : '修为未足（' + s.cult + ' / ' + need + '）';
+    }
+  }
+
+  function buildChoices(ev) {
+    var box = $('choices');
+    var hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = '— 你要怎么做 —';
+    box.appendChild(hint);
+    ev.choices.forEach(function (c, i) {
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = c.text;
+      b.onclick = function () { doChoose(i); };
+      box.appendChild(b);
+    });
+    var p = document.createElement('button');
+    p.className = 'btn ghost';
+    p.textContent = '查看生平';
+    p.onclick = function () { showChronicle(); };
+    box.appendChild(p);
+  }
+
+  function doChoose(i) {
+    var out = GAME.choose(i);
+    renderHUD();
+    $('event-choices').style.display = 'none';
+    var box = $('result-box');
+    var r = out.result;
+    var html = '<span class="rtag">' + (GAME.over ? '终' : '应') + '</span>' + esc(r.result);
+    var ds = [];
+    (r.notes || []).forEach(function (n) {
+      if (n.text != null) ds.push('<span class="chip up"><b>' + esc(n.label) + '</b>' + esc(n.text) + '</span>');
+      else ds.push('<span class="chip ' + (n.v > 0 ? 'up' : 'down') + '"><b>' + esc(n.label) + '</b>' + sign(n.v) + '</span>');
+    });
+    if (ds.length) html += '<div class="deltas">' + ds.join('') + '</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+    checkAch();
+    saveProfile();
+    if (GAME.over) {
+      var b = document.createElement('button');
+      b.className = 'btn primary';
+      b.textContent = '回首此生';
+      b.onclick = function () { renderEnding(); show('screen-ending'); };
+      box.appendChild(b);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    } else {
+      var n = document.createElement('button');
+      n.className = 'btn primary';
+      n.textContent = '继续';
+      n.onclick = function () { GAME.nextEvent(); renderTurn(); };
+      box.appendChild(n);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+  }
+
+  function bindGame() {
+    $('btn-breakthrough').onclick = function () {
+      if (!GAME.canBreakthrough()) return;
+      var out = GAME.breakthrough();
+      renderHUD();
+      $('event-choices').style.display = 'none';
+      var box = $('result-box');
+      var html = '<span class="rtag">关</span>' + esc(out.result.result);
+      var ds = [];
+      (out.result.notes || []).forEach(function (n) {
+        if (n.text != null) ds.push('<span class="chip up"><b>' + esc(n.label) + '</b>' + esc(n.text) + '</span>');
+        else ds.push('<span class="chip ' + (n.v > 0 ? 'up' : 'down') + '"><b>' + esc(n.label) + '</b>' + sign(n.v) + '</span>');
+      });
+      if (ds.length) html += '<div class="deltas">' + ds.join('') + '</div>';
+      box.innerHTML = html;
+      box.style.display = 'block';
+      $('btn-breakthrough').disabled = true;
+      checkAch();
+      saveProfile();
+      var n = document.createElement('button');
+      n.className = 'btn primary';
+      n.textContent = GAME.over ? '回首此生' : '继续';
+      n.onclick = function () {
+        if (GAME.over) { renderEnding(); show('screen-ending'); }
+        else { GAME.nextEvent(); renderTurn(); }
+      };
+      box.appendChild(n);
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    };
+    $('event-text').addEventListener('click', function () { skipTyping(); });
+    $('btn-chron-game').onclick = function () { showChronicle(); };
+  }
+
+  /* ------------------------------------------------------------ 成就 --- */
+
+  var runAch = {};
+  function checkAch() {
+    var s = GAME.s;
+    if (s.sect && profile.sects.indexOf(s.sect) < 0) { profile.sects.push(s.sect); }
+    var got = GAME.runAchievements();
+    if (profile.sects.length >= 6 && !profile.achs.a_six) profile.achs.a_six = 1;
+    var fresh = [];
+    got.forEach(function (id) {
+      if (!runAch[id]) { runAch[id] = 1; if (!profile.achs[id]) { profile.achs[id] = 1; fresh.push(id); } }
+    });
+    if (fresh.length) {
+      var names = fresh.map(function (id) {
+        var a = ACHIEVEMENTS.filter(function (x) { return x.id === id; })[0];
+        return a ? a.name : id;
+      });
+      toast('成就达成 · ' + names.join('、'));
+    }
+    saveProfile();
+  }
+
+  /* ------------------------------------------------------------ 生平 --- */
+
+  function chronicleHTML() {
+    if (!GAME.chronicle.length) return '<div class="row"><span class="txt">尚无可记之事。</span></div>';
+    return GAME.chronicle.map(function (c) {
+      return '<div class="row"><span class="age">' + c.age + ' 岁</span><span class="txt">' +
+        esc(c.event) + ' — ' + esc(c.choice) + (c.log ? ' <em>「' + esc(c.log) + '」</em>' : '') + '</span></div>';
+    }).join('');
+  }
+  function showChronicle() {
+    $('chron-body').innerHTML = chronicleHTML();
+    show('screen-chron');
+  }
+
+  /* ------------------------------------------------------------ 结算 --- */
+
+  var endingCounted = false;
+  function renderEnding() {
+    var s = GAME.s, e = GAME.ending || { endingId: 'mortal', title: '', verdict: '' };
+    var E = ENDINGS[e.endingId];
+    if (!endingCounted) {
+      endingCounted = true;
+      profile.endings[e.endingId] = (profile.endings[e.endingId] || 0) + 1;
+      profile.runs += 1;
+    }
+    var got = GAME.runAchievements();
+    got.forEach(function (id) { if (!profile.achs[id]) profile.achs[id] = 1; });
+    if (profile.sects.length >= 6) profile.achs.a_six = 1;
+    saveProfile();
+    clearRun();
+
+    $('ending-tier').textContent = E ? ('· ' + E.tier + ' ·') : '';
+    $('ending-name').textContent = E ? E.name : '结局';
+    $('ending-name').style.color = E ? E.color : '';
+    $('ending-seal').textContent = E ? E.seal : '道';
+    $('ending-seal').style.color = E ? E.color : '';
+    $('ending-seal').style.borderColor = E ? E.color : '';
+    $('ending-title').textContent = e.title || '';
+    var why = GAME.s.deathCause ? ('死于' + GAME.s.deathCause)
+      : GAME.ascended ? '天门已开，你走了进去'
+        : (e.reason ? e.reason : '寿元耗尽');
+    $('ending-verdict').textContent = (E ? E.judge : '') + '　——　' + why;
+    $('ending-stats').innerHTML = hudHTML(s);
+    $('ending-chron').innerHTML = chronicleHTML();
+    $('btn-share').style.display = 'block';
+  }
+
+  function bindEnding() {
+    $('btn-again').onclick = function () {
+      runAch = {};
+      endingCounted = false;
+      var nm = GAME.s.name;
+      GAME = new Game(EVENTS, RNG);
+      GAME.roll(gender);
+      GAME.s.name = nm;
+      show('screen-roll');
+      renderRoll();
+    };
+    $('btn-gal2').onclick = function () { renderGallery(); show('screen-gallery'); };
+    $('btn-chron2').onclick = function () { showChronicle(); };
+    $('btn-chron-back').onclick = function () {
+      show(GAME && GAME.over ? 'screen-ending' : 'screen-game');
+    };
+  }
+
+  /* ------------------------------------------------------------ 图鉴 --- */
+
+  function renderGallery() {
+    var order = ['mortal', 'longlife', 'common', 'demon', 'power', 'fallen'];
+    $('gal-grid').innerHTML = order.map(function (id) {
+      var E = ENDINGS[id];
+      var n = profile.endings[id] || 0;
+      return '<div class="gal-item' + (n ? ' unlock' : '') + '">' +
+        '<span class="g-seal">' + (n ? E.seal : '？') + '</span>' +
+        '<span class="g-name">' + (n ? E.name : '未解锁') + '</span>' +
+        '<span style="font-size:11.5px">' + (n ? '达成 ' + n + ' 次' : E.tier) + '</span>' +
+        '</div>';
+    }).join('');
+    $('ach-list').innerHTML = ACHIEVEMENTS.map(function (a) {
+      var on = !!profile.achs[a.id];
+      return '<div class="ach' + (on ? ' on' : '') + '"><span class="dot"></span>' +
+        '<span><b style="font-weight:400">' + a.name + '</b> <span class="d">' + a.desc + '</span></span>' +
+        '</div>';
+    }).join('');
+    var total = ACHIEVEMENTS.length;
+    var got = ACHIEVEMENTS.filter(function (a) { return profile.achs[a.id]; }).length;
+    $('gal-stat').textContent = '结局 ' + Object.keys(profile.endings).length + '/6 · 成就 ' + got + '/' + total +
+      ' · 已修行 ' + profile.runs + ' 世' + (profile.sects.length ? ' · 待过：' + profile.sects.join('、') : '');
+  }
+
+  /* --------------------------------------------------------- 分享图 --- */
+
+  function drawShare() {
+    var s = GAME.s, e = GAME.ending || {};
+    var E = ENDINGS[e.endingId] || { name: '结局', tier: '', seal: '道', color: '#1d1a16' };
+    var W = 720, H = 1280;
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var x = c.getContext('2d');
+    var F = '"STKaiti","Kaiti SC","KaiTi","Songti SC","SimSun",serif';
+
+    x.fillStyle = '#efe6d5'; x.fillRect(0, 0, W, H);
+    var g = x.createRadialGradient(W * 0.2, H * 0.1, 40, W * 0.2, H * 0.1, H * 0.8);
+    g.addColorStop(0, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(190,172,142,0.25)');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    x.strokeStyle = 'rgba(29,26,22,0.5)'; x.lineWidth = 3;
+    x.strokeRect(34, 34, W - 68, H - 68);
+    x.strokeStyle = 'rgba(29,26,22,0.18)'; x.lineWidth = 1;
+    x.strokeRect(46, 46, W - 92, H - 92);
+
+    x.textAlign = 'center';
+    x.fillStyle = '#1d1a16';
+    x.font = '30px ' + F;
+    x.fillText('修 仙 模 拟 器', W / 2, 116);
+    x.font = '18px ' + F;
+    x.fillStyle = '#6d6255';
+    x.fillText('一世一轮回 · 结局六种', W / 2, 152);
+
+    x.font = '20px ' + F;
+    x.fillStyle = '#453d33';
+    x.textAlign = 'left';
+    x.fillText('姓名', 76, 226);
+    x.fillText('性别', 300, 226);
+    x.fillText('岁数', 470, 226);
+    x.font = '26px ' + F; x.fillStyle = '#1d1a16';
+    x.fillText(s.name, 76, 262);
+    x.fillText(s.gender, 300, 262);
+    x.fillText(s.age + ' 岁', 470, 262);
+
+    x.font = '20px ' + F; x.fillStyle = '#453d33';
+    x.fillText('灵根', 76, 316);
+    x.fillText('出身', 300, 316);
+    x.font = '22px ' + F; x.fillStyle = '#1d1a16';
+    x.fillText(s.root, 76, 350);
+    x.fillText(s.origin, 300, 350);
+
+    x.strokeStyle = 'rgba(29,26,22,0.25)'; x.lineWidth = 1;
+    x.beginPath(); x.moveTo(70, 386); x.lineTo(W - 70, 386); x.stroke();
+
+    x.textAlign = 'center';
+    x.font = '18px ' + F; x.fillStyle = '#6d6255';
+    x.fillText('· ' + (E.tier || '') + ' ·', W / 2, 432);
+    x.font = '62px ' + F; x.fillStyle = E.color;
+    x.fillText(E.name, W / 2, 508);
+    x.font = '26px ' + F; x.fillStyle = '#453d33';
+    x.fillText(e.title || '', W / 2, 556);
+
+    x.save();
+    x.translate(W - 118, 420); x.rotate(0.13);
+    x.strokeStyle = '#9c2b23'; x.lineWidth = 4;
+    x.strokeRect(-42, -42, 84, 84);
+    x.fillStyle = '#9c2b23'; x.font = '46px ' + F;
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(E.seal, 0, 4);
+    x.restore();
+    x.textBaseline = 'alphabetic';
+
+    var rows = [
+      ['境界', REALM_NAMES[s.realm]],
+      ['道心 / 魔念', s.mind + ' / ' + s.mo],
+      ['气运 / 声望', s.luck + ' / ' + s.fame],
+      ['灵石 / 宗门', s.wealth + ' / ' + (s.sect || '无')],
+      ['道侣', s.partner || '无']
+    ];
+    var y = 626;
+    x.font = '21px ' + F;
+    rows.forEach(function (r) {
+      x.textAlign = 'left'; x.fillStyle = '#6d6255'; x.fillText(r[0], 84, y);
+      x.textAlign = 'right'; x.fillStyle = '#1d1a16'; x.fillText(String(r[1]), W - 84, y);
+      x.strokeStyle = 'rgba(29,26,22,0.1)';
+      x.beginPath(); x.moveTo(84, y + 14); x.lineTo(W - 84, y + 14); x.stroke();
+      y += 52;
+    });
+
+    x.textAlign = 'center'; x.fillStyle = '#6d6255'; x.font = '20px ' + F;
+    x.fillText('— 生 平 摘 要 —', W / 2, y + 30);
+    y += 62;
+    x.textAlign = 'left'; x.font = '19px ' + F;
+    var lines = GAME.chronicle.filter(function (c) { return c.log; }).slice(-9);
+    if (!lines.length) lines = GAME.chronicle.slice(-9);
+    lines.forEach(function (c) {
+      if (y > H - 116) return;
+      x.fillStyle = '#8a7f6e';
+      x.fillText(c.age + '岁', 84, y);
+      x.fillStyle = '#1d1a16';
+      var t = (c.log || (c.event + '：' + c.choice));
+      if (t.length > 20) t = t.slice(0, 19) + '…';
+      x.fillText(t, 148, y);
+      y += 38;
+    });
+
+    x.textAlign = 'center'; x.fillStyle = '#6d6255'; x.font = '18px ' + F;
+    x.fillText('修仙模拟器 · 网页文字小游戏', W / 2, H - 66);
+
+    return c.toDataURL('image/png');
+  }
+
+  function bindShare() {
+    $('btn-share-make').onclick = function () {
+      var url = drawShare();
+      $('share-img').src = url;
+      $('share-result').style.display = 'block';
+      $('btn-share-make').textContent = '重新生成';
+      var a = $('btn-download');
+      a.href = url;
+      a.download = '修仙模拟器_' + GAME.s.name + '.png';
+    };
+  }
+
+  /* ------------------------------------------------------------ 启动 --- */
+
+  document.addEventListener('DOMContentLoaded', function () {
+    boot();
+    bindRoll();
+    bindGame();
+    bindEnding();
+    bindShare();
+    show('screen-title');
+  });
+})();
+
+</script>
+</body>
+</html>
