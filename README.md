@@ -6,6 +6,8 @@
 - 一局约 **5–10 分钟**，40 回合上下，112 个事件，六种结局，24 个成就。
 - 双击即玩；也可以放到任意静态托管上，把链接发给微信好友。
 
+> 🔗 在线版：<https://ydzd6.github.io/xiuxian-simulator/> —— 微信里直接点开就能玩。
+
 ---
 
 ## 目录
@@ -240,6 +242,8 @@ export const EVENTS_D03 = [
 3. **Branch** 选 `main`，目录选 `/ (root)`，点 **Save**
 
 等一分钟左右，访问 **`https://<用户名>.github.io/<仓库名>/`** 就是在线版。
+
+本项目已经开启，线上地址：**<https://ydzd6.github.io/xiuxian-simulator/>**
 
 **方式二：命令行（需要 `gh` 能正常联网）**
 
