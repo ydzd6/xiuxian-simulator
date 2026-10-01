@@ -149,7 +149,8 @@
 └── tools/
     ├── simulate.mjs        # 无界面平衡模拟器（random / greedy 两种策略）
     ├── sweep.mjs           # 数值参数扫描
-    └── ui-smoke.mjs        # 界面层冒烟测试（Node + DOM 桩）
+    ├── ui-smoke.mjs        # 界面层冒烟测试（Node + DOM 桩）
+    └── verify.mjs          # 产物自检（单文件 / 零依赖 / 数据完整）
 ```
 
 **编辑的是 `src/`，`index.html` 是产物**。改完跑一次 `node build.mjs`。
@@ -165,11 +166,13 @@ node build.mjs              # 校验数据并重新生成 index.html
 node tools/simulate.mjs 5000 # 跑 5000 局平衡模拟（random + greedy）
 node tools/sweep.mjs 1500    # 数值参数扫描，输出对比表
 node tools/ui-smoke.mjs 40   # 界面冒烟测试：自动走完 40 个完整周目
+node tools/verify.mjs        # 产物自检：单文件、零依赖、数据完整、脚本可求值
 ```
 
 - `build.mjs` 会做**数据校验**：id 唯一、选项 ≥ 2、`cond` / `effect` 字段必须在白名单内、`sectJoin` 必须是已知宗门……任何一条不过就直接构建失败。
 - `simulate.mjs` 输出结局分布、终局境界分布、平均回合/终龄、横死率、事件覆盖率、成就达成率。
 - `ui-smoke.mjs` 用一套极简 DOM 桩在 Node 里跑通内联脚本，覆盖「取名 → 抽灵根 → 重抽 → 落定 → 事件 → 突破 → 结算 → 图鉴 → 分享图 → 再来一世」以及**刷新后继续上一世**的存档读回。
+- `verify.mjs` 守住「单文件」这个承诺：确认产物里没有任何外部 `src`/`href`、没有 `@import`、JSON 块可解析、112 个事件 id 唯一、内联脚本无 `export`/`import` 残留且能在裸 DOM 桩下求值、`localStorage` 有 try/catch 兜底（`file://` 下不会白屏）。
 
 > 受限沙箱里 Chromium 起不来（mojo named pipe 被拒），所以界面验证走的是 `ui-smoke.mjs` 这套 DOM 桩，而不是真实浏览器截图。
 
