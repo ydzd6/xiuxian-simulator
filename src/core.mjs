@@ -7,7 +7,11 @@ export const REALM_LIFESPAN = [90, 120, 200, 400, 800, 1500, 3000, 999999];
 
 /** 全部平衡参数集中在这里，方便 tools/simulate.mjs 做参数扫描 */
 export const TUNING = {
-  costs: [240, 620, 1150, 1750, 1900, 600, 750],
+  /* 各境界突破所需增量。由 tools/sweep.mjs 扫描定稿，对应累计门槛
+   * [240, 860, 2150, 3450, 4300, 5200, 7200]。
+   * 形状：中段两关（金丹 1290 / 元婴 1300）负责筛人，化神之后数值变小，
+   * 但天劫惩罚与最后一道 2000 的飞升关把顶端压回 2% 左右。 */
+  costs: [240, 620, 1290, 1300, 850, 900, 2000],
   /** 每回合打坐自然积累的修为基数 */
   passiveBase: 14,
   /** 每高一个境界，打坐收益增加多少 */
@@ -19,7 +23,28 @@ export const TUNING = {
   /** 一局最多经历多少个事件 */
   turnCap: 48,
   /** 单次事件最多推进当前境界进度的比例 */
-  cultCapRatio: 0.6
+  cultCapRatio: 0.6,
+
+  /* ---- 死亡面：决定「陨落」这一档有多厚 ---- */
+  /** 走火入魔（冲关反噬）直接身死的概率 */
+  backfireDeath: 0,
+  /** 化神之上（含化神）冲关失败遭天劫、身死道消的概率 */
+  tribulationDeath: 0,
+  /** 寿元耗尽是否算「陨落」（否则按境界评正常人生等） */
+  agingIsDeath: false,
+
+  /* ---- 结局判定线：决定六档之间的此消彼长 ---- */
+  /** 飞升时魔念超过多少算「天魔人生」 */
+  moAscendDemon: 55,
+  /** 未飞升者：魔念达到多少且境界不低于 moDemonRealm，算「天魔人生」 */
+  moDemon: 58,
+  moDemonRealm: 3,
+  /** 未飞升者：达到这个境界即算「爽文人生」 */
+  powerRealm: 5,
+  /** 差一个境界但声望够高，也算「爽文人生」 */
+  powerFame: 185,
+  /** 筑基且活到这个岁数（但没到金丹），算「凡人长寿」 */
+  longlifeAge: 140
 };
 
 export const BREAKTHROUGH_COST = TUNING.costs;
@@ -54,7 +79,7 @@ export const SECT_NAMES = ['青云剑宗', '丹霞谷', '天音阁', '万魔殿'
 
 export const ENDINGS = {
   fallen: { id: 'fallen', name: '陨落', tier: '死亡', seal: '殁', color: '#6a6a6a', judge: '道途止于半山' },
-  mortal: { id: 'mortal', name: '平民人生', tier: '平民', seal: '凡', color: '#8a7a63', judge: '来过，活过，然后归于尘土' },
+  mortal: { id: 'mortal', name: '普通修仙者', tier: '普通', seal: '凡', color: '#8a7a63', judge: '来过，活过，然后归于尘土' },
   longlife: { id: 'longlife', name: '凡人长寿', tier: '长寿', seal: '寿', color: '#6f8b6a', judge: '一辈子没修出什么名堂，却活得很长' },
   common: { id: 'common', name: '正常人生', tier: '正常', seal: '道', color: '#5a7a9a', judge: '有一番修行，也有一场归宿' },
   demon: { id: 'demon', name: '天魔人生', tier: '魔道', seal: '魔', color: '#7a3b4a', judge: '走到极高处，只是那人已不再是你' },
@@ -84,14 +109,14 @@ export function judge(s, opts) {
   if (s.deathCause) {
     id = 'fallen';
   } else if (ascended) {
-    id = s.mo >= 55 ? 'demon' : 'power';
-  } else if (s.mo >= 70 && s.realm >= 3) {
+    id = s.mo >= TUNING.moAscendDemon ? 'demon' : 'power';
+  } else if (s.mo >= TUNING.moDemon && s.realm >= TUNING.moDemonRealm) {
     id = 'demon';
-  } else if (s.realm >= 5 || (s.realm >= 4 && s.fame >= 250)) {
+  } else if (s.realm >= TUNING.powerRealm || (s.realm >= TUNING.powerRealm - 1 && s.fame >= TUNING.powerFame)) {
     id = 'power';
   } else if (s.realm >= 3) {
     id = 'common';
-  } else if (s.realm >= 2 && s.age >= 130) {
+  } else if (s.realm >= 2 && s.age >= TUNING.longlifeAge) {
     id = 'longlife';
   } else {
     id = 'mortal';
@@ -128,10 +153,10 @@ export const ACHIEVEMENTS = [
   { id: 'a_partner', name: '道侣在侧', desc: '与人结为道侣' },
   { id: 'a_alone', name: '孤身问道', desc: '未结道侣而达化神' },
   { id: 'a_demon', name: '一念成魔', desc: '魔念达到 80' },
-  { id: 'a_save', name: '悬崖勒马', desc: '魔念曾过 60，最终压回 20 以下' },
+  { id: 'a_save', name: '悬崖勒马', desc: '魔念曾过 45，最终压回 20 以下' },
   { id: 'a_long', name: '长命百岁', desc: '活到一百岁' },
   { id: 'a_die', name: '身死道消', desc: '死在了路上' },
-  { id: 'a_mortal_end', name: '平凡一生', desc: '得到「平民人生」结局' },
+  { id: 'a_mortal_end', name: '平凡一生', desc: '得到「普通修仙者」结局' },
   { id: 'a_power_end', name: '爽文主角', desc: '得到「爽文人生」结局' },
   { id: 'a_demon_end', name: '魔道至尊', desc: '得到「天魔人生」结局' },
   { id: 'a_long_end', name: '人瑞', desc: '得到「凡人长寿」结局' },
@@ -355,20 +380,6 @@ export class Game {
     const ch = ev.choices[index] || ev.choices[0];
     let eff = ch.effect || {};
     const notes = [];
-    let savedText = '';
-
-    // 大难不死：气运足够的人，第一次撞上必死结局会被一缕说不清的东西拽回来
-    if (eff.death && !s.savedOnce && s.luck >= 65) {
-      s.savedOnce = true;
-      eff = Object.assign({}, eff, {
-        death: null,
-        lifespan: (eff.lifespan || 0) - 40,
-        cult: -Math.round(Math.abs(eff.cult || 0) * 0.5),
-        fame: -10,
-        flagAdd: (eff.flagAdd || []).concat(['大难不死'])
-      });
-      savedText = '\n\n【大难不死】你本该断在这里。可有一缕说不清的东西把你从死地里拽了出来——只是这一次机会，你已经用掉了。';
-    }
 
     // 岁月本身的积累
     const pg = passiveGain(s);
@@ -391,7 +402,10 @@ export class Game {
     s.age = Math.round(s.age);
     this.turn++;
 
-    this.lastResult = { result: ch.result + savedText, notes };
+    this.lastResult = { result: ch.result, notes };
+
+    // 寿元耗尽既可以按境界评结局，也可以直接算「陨落」（由 TUNING.agingIsDeath 决定）
+    if (!s.deathCause && TUNING.agingIsDeath && s.age >= s.lifespan) s.deathCause = '寿元耗尽';
 
     if (s.deathCause) {
       this.chronicle.push({ age: s.age, event: '陨落', choice: s.deathCause, log: s.deathCause });
@@ -449,13 +463,28 @@ export class Game {
       notes.push({ label: '修为', v: -Math.round(cost * 0.25) });
       notes.push({ label: '魔念', v: bad ? 12 : 5 });
       this.chronicle.push({ age: s.age, event: '突破失败', choice: bad ? '走火入魔' : '冲关未成', log: bad ? '冲关反噬' : '冲关未成' });
+      // 走火入魔 / 天劫：冲关失败也可能把命留在这道关口上
+      if (bad && this.rng() < TUNING.backfireDeath) {
+        s.deathCause = '冲关反噬';
+        text += ' 这一口血再没止住——你的道途断在了这道关口上。';
+      } else if (s.realm >= 5 && this.rng() < TUNING.tribulationDeath) {
+        s.deathCause = '天劫加身';
+        text += ' 天雷过了七道，第八道落下时，你没有再站起来。';
+      }
     }
     s.age += this.defaultYears();
     this.turn++;
     s.cult += passiveGain(s);
     this.lastResult = { result: text, notes };
-    if (s.age >= s.lifespan) this.finish(false, '寿元耗尽');
-    else if (this.turn >= TUNING.turnCap) this.finish(false, '大限将至');
+    if (!s.deathCause && TUNING.agingIsDeath && s.age >= s.lifespan) s.deathCause = '寿元耗尽';
+    if (s.deathCause) {
+      this.chronicle.push({ age: s.age, event: '陨落', choice: s.deathCause, log: s.deathCause });
+      this.finish(false);
+    } else if (s.age >= s.lifespan) {
+      this.finish(false, '寿元耗尽');
+    } else if (this.turn >= TUNING.turnCap) {
+      this.finish(false, '大限将至');
+    }
     return { result: this.lastResult, ended: this.over };
   }
 
@@ -485,7 +514,7 @@ export class Game {
     if (s.partner) has('a_partner');
     if (!s.partner && s.realm >= 5) has('a_alone');
     if (s.mo >= 80) has('a_demon');
-    if ((s.moPeak || 0) >= 60 && s.mo < 20) has('a_save');
+    if ((s.moPeak || 0) >= 45 && s.mo < 20) has('a_save');
     if (s.age >= 100) has('a_long');
     if (s.deathCause) has('a_die');
     if (this.ending) {

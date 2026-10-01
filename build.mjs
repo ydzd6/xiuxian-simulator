@@ -47,7 +47,7 @@ events.forEach((e, i) => {
   seenId.set(e.id, true);
   if (!e.title) errors.push(`${tag}: 缺少 title`);
   if (!e.text || e.text.length < 40) errors.push(`${tag}: text 过短或缺失`);
-  if (e.text && (e.text.length < 100 || e.text.length > 320)) warns.push(`${tag}: text 长度 ${e.text.length}`);
+  if (e.text && (e.text.length < 40 || e.text.length > 55)) warns.push(`${tag}: text 长度 ${e.text.length}（目标约 50 字，42~52）`);
   if (!Array.isArray(e.choices) || e.choices.length < 2) errors.push(`${tag}: 选项少于 2 个`);
   if (e.choices && e.choices.length > 6) warns.push(`${tag}: 选项 ${e.choices.length} 个`);
   e.cond && Object.keys(e.cond).forEach(k => { if (!COND_KEYS.has(k)) errors.push(`${tag}: cond 未知字段 ${k}`); });
